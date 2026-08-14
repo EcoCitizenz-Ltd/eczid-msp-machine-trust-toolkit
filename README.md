@@ -115,3 +115,21 @@ EcoCitizenz currently offers a fixed-scope MCP Readiness Audit for £395.
 [View current public identity and evidence](https://resolver.ecocitizenz.org/passport/ECZ-GB-RBS1NW)
 
 Use ECZ-ID evidence as one input into your own customer policy and service decisions.
+
+---
+
+## GitHub-native managed-service layer
+
+For customers using GitHub, combine:
+
+- **ECZ-ID MCP & Agent Check** for supported committed MCP/agent configuration and change review.
+- **ECZ-ID Agent Trust** for specialist supported agent identity/evidence review.
+- **ECZ-ID MCP Verifier** for repeatable public Resolver-posture checks where a parent ECZ-ID is available.
+
+[Install MCP & Agent Check](https://github.com/marketplace/ecz-id-mcp-agent-check)
+
+[Install Agent Trust](https://github.com/marketplace/ecz-id-agent-trust)
+
+[View MCP Verifier](https://github.com/Ecocitizenz/ecz-id-mcp-verifier)
+
+These tools can support a managed review workflow without turning a GitHub result into a universal trust verdict.
