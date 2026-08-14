@@ -1,5 +1,7 @@
 # ECZ-ID MSP / MSSP Machine Trust Toolkit
 
+![ECZ-ID MSP Machine Trust Toolkit customer-estate visual](https://raw.githubusercontent.com/EcoCitizenz-Ltd/.github/main/assets/repository-visuals/eczid-msp-machine-trust-toolkit.jpg)
+
 ## Know which machines can act across your customers' environments.
 
 MSPs and MSSPs already manage users, endpoints, identities and applications.
@@ -110,8 +112,7 @@ EcoCitizenz currently offers a fixed-scope MCP Readiness Audit for £395.
 
 ## Public operator proof
 
-**ECZ-ID VERIFIED - ECZ-GB-RBS1NW**
-
+**ECZ-ID public identity evidence - ECZ-GB-RBS1NW**
 [View current public identity and evidence](https://resolver.ecocitizenz.org/passport/ECZ-GB-RBS1NW)
 
 Use ECZ-ID evidence as one input into your own customer policy and service decisions.
