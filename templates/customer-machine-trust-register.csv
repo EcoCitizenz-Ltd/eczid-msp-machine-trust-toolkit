@@ -1,0 +1,5 @@
+customer,surface_type,surface_name,operator,customer_owner,authority_or_access,last_reviewed,change_detected,next_action
+Example Customer,MCP server,,,,,,,
+Example Customer,AI agent,,,,,,,
+Example Customer,API,,,,,,,
+Example Customer,Software workload,,,,,,,
