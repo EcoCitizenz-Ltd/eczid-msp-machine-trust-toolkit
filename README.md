@@ -6,33 +6,39 @@
 
 MSPs and MSSPs already manage users, endpoints, identities and applications.
 
-The next estate also includes MCP servers, AI agents, APIs, software workloads, automated tools and machine identities.
+The next estate also includes MCP servers, AI agents, plugins, APIs, service workloads, IoT devices, SDK integrations and the machine identities they use.
 
-This repository gives you a practical starting point for discovering those surfaces, deciding what deserves deeper review, and moving the right client estates into a repeatable Machine Trust service.
+This repository gives you a practical starting point for discovering those surfaces, recording what each customer authorised separately from what each machine can technically reach, deciding what deserves deeper review, and moving the right client estates into a repeatable Machine Trust service.
+
+It is designed to work alongside your RMM, PSA, IAM, OAuth and security controls, not to replace them.
 
 ## Start with the client-estate question, not the product
 
-### 1. Run the free Machine Trust Check
+### Start here: run the free Machine Trust Check
 
 Seventeen questions. No signup. The answers are evaluated in your browser and are not transmitted.
 
 [**Run the free Machine Trust Check ->**](https://msp.ecocitizenz.com/trust-check?utm_source=github&utm_medium=repository&utm_campaign=msp-machine-trust&utm_content=hero-check)
 
-### 2. Create the starting record
+### If the check finds gaps: the fixed-scope Baseline
 
-If the check shows that machine actors, customer authority, delegated access or evidence are difficult to account for consistently, the next step is the fixed-scope **£395 Client-Estate Machine Trust Baseline**.
+If the check shows that machine actors, customer authority, delegated access or evidence are difficult to account for consistently, the bounded next step is the fixed-scope **£395 Client-Estate Machine Trust Baseline**.
 
 The Baseline maps representative machine/action paths, customer authority, operating surfaces and evidence, then identifies which client estates should enter recurring Machine Trust.
 
-[**Review the £395 Client-Estate Machine Trust Baseline ->**](https://msp.ecocitizenz.com/audit?utm_source=github&utm_medium=repository&utm_campaign=msp-machine-trust&utm_content=hero-baseline)
+[Review the £395 Client-Estate Machine Trust Baseline ->](https://msp.ecocitizenz.com/audit?utm_source=github&utm_medium=repository&utm_campaign=msp-machine-trust&utm_content=hero-baseline)
 
-### 3. Keep the right client estates current
+Checkout for the Baseline runs on TrustOps. Payment is never verification: paying for the Baseline or for any tier starts intake or a commercial record, and it does not create, change or prove any ECZ-ID record.
 
-The Baseline creates the starting record. Machine Trust Core or Machine Trust Assured keeps the selected client estates current through authority, delegation, lifecycle, Attention Required, client evidence and re-check.
+---
 
-Your MSP keeps the customer relationship, retail price and service wrapper.
+## Keeping client estates current
 
-[Explore Managed AI Accountability](https://msp.ecocitizenz.com/managed-ai?utm_source=github&utm_medium=repository&utm_campaign=msp-machine-trust&utm_content=managed-ai) · [Explore the MSP Partner Programme](https://msp.ecocitizenz.com/partners?utm_source=github&utm_medium=repository&utm_campaign=msp-machine-trust&utm_content=partner-programme)
+The Baseline creates the starting record. Recurring Machine Trust for MSPs tiers keep the selected client estates current through customer authority, operator delegation, lifecycle state, Attention Required, client evidence and independent re-check. Some of these elements, including Attention Required, Evidence Packs and customer proof views, are delivered by an EcoCitizenz operator today.
+
+Your MSP keeps the customer relationship and the service wrapper.
+
+Current tiers and prices are published only on TrustOps, and this repository does not copy them: [recurring Machine Trust for MSPs tiers](https://trustops.ecocitizenz.com/start#solution-msp).
 
 ---
 
@@ -160,32 +166,32 @@ Use the free MCP & AI Agent Trust Preflight as a practical review aid before dee
 
 For customers using GitHub, combine:
 
-- **ECZ-ID MCP & Agent Check** for supported committed MCP/agent configuration and change review.
-- **ECZ-ID Agent Trust** for specialist supported agent identity/evidence review.
-- **ECZ-ID MCP Verifier** for repeatable public Resolver-posture checks where a parent ECZ-ID is available.
-
-[Install MCP & Agent Check](https://github.com/marketplace/ecz-id-mcp-agent-check)
-
-[Install Agent Trust](https://github.com/marketplace/ecz-id-agent-trust)
-
-[View MCP Verifier](https://github.com/Ecocitizenz/ecz-id-mcp-verifier)
+- **ECZ-ID MCP & Agent Check** for supported committed MCP/agent configuration and change review ([GitHub Marketplace listing](https://github.com/marketplace/ecz-id-mcp-agent-check)).
+- **ECZ-ID Agent Trust** for specialist supported agent identity/evidence review ([GitHub Marketplace listing](https://github.com/marketplace/ecz-id-agent-trust)).
+- **ECZ-ID MCP Verifier** for repeatable public Resolver-posture checks where a parent ECZ-ID is available ([repository](https://github.com/Ecocitizenz/ecz-id-mcp-verifier)).
 
 These tools can support a managed review workflow without turning a GitHub result into a universal trust verdict.
 
 ---
 
-## Need an MCP-specific human review instead?
+## For automation and agents
 
-For a bounded MCP-specific assessment, EcoCitizenz also offers the fixed-scope MCP Readiness Audit.
+Scripts and agents can use these public surfaces today:
 
-[Explore MCP Readiness Services](https://mcp.ecocitizenz.com?utm_source=github&utm_medium=repository&utm_campaign=msp-machine-trust&utm_content=mcp-audit)
+- **Public Resolver.** Each ECZ-ID record has a human-readable page at `/p/` plus the ECZ-ID on resolver.ecocitizenz.org, for example [ECZ-GB-RBS1NW](https://resolver.ecocitizenz.org/p/ECZ-GB-RBS1NW). Read the record's current state there rather than caching it.
+- **Free Machine Trust Check.** The check at https://msp.ecocitizenz.com/trust-check runs in the browser and does not transmit answers, so there is no submission API.
+- **TrustOps start routes.** Commercial journeys begin under https://trustops.ecocitizenz.com/start. For example, the Baseline order review is https://trustops.ecocitizenz.com/start/review?intent=mcp_service_audit&context=msp. A start route opens a review step for a person. It does not complete a purchase.
+
+Machine Capability routes, meaning programmatic offer discovery, next-action routing and purchase routes for agents, are not yet public. Do not depend on any ECZ-ID or TrustOps endpoint that is not listed above. This section will change when those routes are released.
 
 ---
 
-## Public operator proof
+## Public operator identity record
 
-**ECZ-ID public identity evidence - ECZ-GB-RBS1NW**
+**ECZ-ID public identity record: ECZ-GB-RBS1NW (EcoCitizenz Ltd)**
 
-[View current public identity and evidence](https://resolver.ecocitizenz.org/passport/ECZ-GB-RBS1NW)
+[View the current public record on the ECZ-ID Resolver](https://resolver.ecocitizenz.org/p/ECZ-GB-RBS1NW)
+
+This public record identifies the operator. It is not, by itself, proof of control over any domain, app, repository or tool linked from this repository.
 
 Use ECZ-ID evidence as one input into your own customer policy and service decisions. ECZ-ID does not turn a repository result, machine actor or third party into a universal safety or approval verdict.
