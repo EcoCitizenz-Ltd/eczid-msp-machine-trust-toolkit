@@ -15,9 +15,13 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.x"
-      - name: Check UTF-8 and public-copy encoding
+      - name: Run public-copy gate self-tests
+        run: python -m unittest discover -s scripts -p "test_*.py" -v
+      - name: Check encoding, claims, links, prices and register contract
         run: python scripts/check_public_copy.py
