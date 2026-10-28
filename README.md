@@ -38,50 +38,87 @@ Your MSP keeps the customer relationship, retail price and service wrapper.
 
 ## Customer machine-trust discovery checklist
 
-For each customer, ask:
+For each customer, ask the questions below. The names in brackets are the register columns that record each answer.
 
 ### MCP
 
-- Which MCP servers are configured?
-- Who operates them?
-- Which tools are exposed?
-- Which environments can they reach?
-- What changed recently?
+- Which MCP servers are configured? (`machine_kind` = `mcp`, `machine_identifier`)
+- Who operates them? (`machine_operator_organisation`, `msp_operator_organisation`, `accountable_operator_role`)
+- Which tools are exposed? (`action_class`)
+- Which environments can they reach? (`technical_access_reference`)
+- What changed recently? (`change_detected`)
 
 ### AI agents
 
-- Which agents are deployed or under evaluation?
-- Which tools and MCP servers can they access?
-- Which external systems can they reach?
-- Which credentials or delegated authorities are involved?
+- Which agents are deployed or under evaluation? (`machine_kind` = `agent`, `machine_identifier`)
+- Which tools and MCP servers can they access? (`technical_access_reference`, `action_class`)
+- Which external systems can they reach? (`technical_access_reference`)
+- Which delegated authorities and credentials are involved? (`customer_authority_reference`, `operator_delegation_reference`, `technical_access_reference`; record where a credential is held, never the credential)
 
 ### APIs
 
-- Which critical APIs are machine-consumed?
-- Who operates them?
-- How are identity and authorization established?
-- Where can current evidence be reviewed?
+- Which critical APIs are machine-consumed? (`machine_kind` = `api`, `machine_identifier`)
+- Who operates them? (`machine_operator_organisation`)
+- How are identity and authorization established? (`technical_access_reference` for what the platform permits, `customer_authority_reference` for what the customer authorised)
+- Where can current evidence be reviewed? (`evidence_reference`, `resolver_recheck_link`)
 
 ### Evidence
 
-- Is there a current owner?
-- Is there a review date?
-- Is there a change baseline?
-- Is there a revocation or incident route?
-- Can evidence be independently re-checked?
+- Is there a current owner? (`customer_owner_role`, `accountable_operator_role`)
+- Has the customer confirmed the authority? (`customer_confirmation_state`)
+- Is there a review date? (`last_reviewed`, `review_due`, `currentness_state`)
+- Is there a change baseline? (`change_detected`; use `no_baseline` when none exists)
+- Is there a revocation or incident route? (`revocation_route`, `lifecycle_state`)
+- Can evidence be independently re-checked? (`evidence_reference`, `receipt_reference`, `resolver_recheck_link`)
 
 ---
 
-## Suggested customer register
+## Customer machine-trust register
 
-| Surface | Operator | Customer owner | Authority / access | Last reviewed | Change detected | Next action |
-|---|---|---|---|---|---|---|
-| MCP server |  |  |  |  |  |  |
-| AI agent |  |  |  |  |  |  |
-| API |  |  |  |  |  |  |
-| Software workload |  |  |  |  |  |  |
+The canonical column list is the header row of [`templates/customer-machine-trust-register.csv`](templates/customer-machine-trust-register.csv). The table below documents the same columns in the same order, and CI fails if the two drift apart.
 
-Copy this table into your own customer documentation and expand it to match your service model.
+**Customer authority is not technical access.** Record three things separately:
+
+1. What the customer authorised (`customer_authority_reference`).
+2. What your MSP, as the accountable operator, delegated to the machine within that authority (`operator_delegation_reference`).
+3. What a platform technically permits, such as an admin role, an OAuth consent or an API scope (`technical_access_reference`).
+
+A platform permission is not the customer's authority. A row your MSP fills in is MSP-declared. Set `customer_confirmation_state` to `confirmed` only when the referenced confirmation came from the customer.
+
+<!-- register-columns:start -->
+| Column | Records | Values |
+|---|---|---|
+| `customer_organisation` | The customer organisation the machine acts for. | Free text |
+| `customer_owner_role` | The customer role that owns the authority decision. Record a role, not a named person. | Free text |
+| `msp_operator_organisation` | The MSP or MSSP accountable for the machine in this customer estate. | Free text |
+| `accountable_operator_role` | The role inside the MSP that answers for the machine. | Free text |
+| `machine_kind` | The kind of machine actor. | `agent`, `mcp`, `plugin`, `api`, `service-workload`, `iot`, `sdk` |
+| `machine_identifier` | The identifier the machine carries in the system it runs in. | Free text |
+| `machine_operator_organisation` | The organisation that runs the machine: the MSP, the customer or a vendor. | Free text |
+| `action_class` | The most consequential action the machine can take. | `READ`, `WRITE`, `HIGH-IMPACT-ADMIN` |
+| `customer_authority_reference` | Customer authority: a pointer to what the customer authorised, such as a scope decision, contract clause or change record. Leave empty if none exists. | Reference |
+| `operator_delegation_reference` | Operator delegation: a pointer to what the MSP delegated to the machine within that authority. | Reference |
+| `technical_access_reference` | Technical access: a pointer to what the platform permits. Never the credential, token or key itself. | Reference |
+| `customer_confirmation_state` | Whether the customer has confirmed the authority record. Only the customer can make it `confirmed`. | `not_requested`, `requested`, `confirmed`, `declined`, `expired` |
+| `evidence_reference` | A pointer to evidence that can be re-checked. | Reference |
+| `lifecycle_state` | The current state of the machine's authority. | `active`, `suspended`, `revoked`, `superseded`, `expired` |
+| `revocation_route` | A pointer to how the authority is withdrawn and how an incident is raised. | Reference |
+| `last_reviewed` | The date of the last review. | `YYYY-MM-DD` |
+| `review_due` | The date the next review is due. | `YYYY-MM-DD` |
+| `currentness_state` | Whether the row is still current: `stale` once `review_due` has passed or a change is detected. | `current`, `stale`, `unknown` |
+| `change_detected` | Change against the recorded baseline since the last review. | `no_change`, `changed`, `no_baseline`, `unknown` |
+| `receipt_reference` | A pointer to a receipt recorded for a change or confirmation, where one exists. | Reference |
+| `resolver_recheck_link` | The public Resolver page for the record, where an ECZ-ID record exists (`/p/<ECZ-ID>` on resolver.ecocitizenz.org). | URL or empty |
+| `next_action` | The single next action for this row. | Free text |
+<!-- register-columns:end -->
+
+### Safe use of the template
+
+- The example rows are synthetic. Delete them before you use the template.
+- Record pointers to where consents, credentials and evidence are held. Never put a credential, token, key or private customer evidence in the register.
+- Record roles rather than named individuals, to keep personal data out of the register.
+- Values pasted from MCP manifests, tool metadata or tickets can start with `=`, `+`, `-` or `@`. A spreadsheet may run such a value as a formula. Prefix it with an apostrophe (`'`) or rewrite it.
+- Keep one header row and end the file with a newline, so appended rows stay aligned.
 
 ---
 

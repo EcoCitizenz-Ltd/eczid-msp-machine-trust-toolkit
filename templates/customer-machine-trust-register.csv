@@ -1,5 +1,6 @@
-customer,surface_type,surface_name,operator,customer_owner,authority_or_access,last_reviewed,change_detected,next_action
-Example Customer,MCP server,,,,,,,
-Example Customer,AI agent,,,,,,,
-Example Customer,API,,,,,,,
-Example Customer,Software workload,,,,,,,
+customer_organisation,customer_owner_role,msp_operator_organisation,accountable_operator_role,machine_kind,machine_identifier,machine_operator_organisation,action_class,customer_authority_reference,operator_delegation_reference,technical_access_reference,customer_confirmation_state,evidence_reference,lifecycle_state,revocation_route,last_reviewed,review_due,currentness_state,change_detected,receipt_reference,resolver_recheck_link,next_action
+Example Customer A,Operations Director,Example MSP,Service Delivery Manager,mcp,example-ticketing-mcp,Example Vendor,WRITE,EXAMPLE-AUTH-0001,EXAMPLE-DELEG-0001,EXAMPLE-ACCESS-0001,requested,EXAMPLE-EVID-0001,active,EXAMPLE-REVOKE-0001,2026-10-01,2027-01-01,current,no_change,,,Chase customer confirmation of the authority scope
+Example Customer A,Finance Manager,Example MSP,Automation Lead,agent,example-invoice-agent,Example MSP,HIGH-IMPACT-ADMIN,,EXAMPLE-DELEG-0002,EXAMPLE-ACCESS-0002,not_requested,,active,,2026-09-15,2026-10-15,stale,changed,,,Record customer authority before relying on the technical access
+Example Customer B,IT Manager,Example MSP,Integration Engineer,api,example-crm-sync-api,Example Customer B,READ,EXAMPLE-AUTH-0003,EXAMPLE-DELEG-0003,EXAMPLE-ACCESS-0003,confirmed,EXAMPLE-EVID-0003,active,EXAMPLE-REVOKE-0003,2026-10-20,2027-04-20,current,no_change,EXAMPLE-RCPT-0003,,Review at the next quarterly business review
+Example Customer B,Head of Security,Example MSP,Security Operations Lead,service-workload,example-backup-workload,Example Vendor,WRITE,EXAMPLE-AUTH-0004,EXAMPLE-DELEG-0004,EXAMPLE-ACCESS-0004,expired,EXAMPLE-EVID-0004,suspended,EXAMPLE-REVOKE-0004,2026-07-01,2026-10-01,stale,no_baseline,,,Re-request confirmation and capture a change baseline
+Example Customer C,Practice Manager,Example MSP,Service Delivery Manager,plugin,example-browser-plugin,Example Vendor,READ,,,EXAMPLE-ACCESS-0005,not_requested,,revoked,EXAMPLE-REVOKE-0005,2026-10-10,,current,unknown,EXAMPLE-RCPT-0005,,Confirm removal from every managed device
