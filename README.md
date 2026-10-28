@@ -71,7 +71,7 @@ For each customer, ask the questions below. The names in brackets are the regist
 ### Evidence
 
 - Is there a current owner? (`customer_owner_role`, `accountable_operator_role`)
-- Has the customer confirmed the authority? (`customer_confirmation_state`)
+- Has the customer confirmed the authority, and where is their confirmation? (`customer_confirmation_state`, `customer_confirmation_reference`)
 - Is there a review date? (`last_reviewed`, `review_due`, `currentness_state`)
 - Is there a change baseline? (`change_detected`; use `no_baseline` when none exists)
 - Is there a revocation or incident route? (`revocation_route`, `lifecycle_state`)
@@ -89,7 +89,16 @@ The canonical column list is the header row of [`templates/customer-machine-trus
 2. What your MSP, as the accountable operator, delegated to the machine within that authority (`operator_delegation_reference`).
 3. What a platform technically permits, such as an admin role, an OAuth consent or an API scope (`technical_access_reference`).
 
-A platform permission is not the customer's authority. A row your MSP fills in is MSP-declared. Set `customer_confirmation_state` to `confirmed` only when the referenced confirmation came from the customer.
+A platform permission is not the customer's authority. A row your MSP fills in is MSP-declared, and that includes `customer_authority_reference`, which can point at a record your MSP wrote. Only a pointer to the customer's own confirmation, in `customer_confirmation_reference`, shows that the customer confirmed it.
+
+Keep each row consistent:
+
+- Set `customer_confirmation_state` to `confirmed` only when the row has both a `customer_authority_reference` and a `customer_confirmation_reference`.
+- `customer_confirmation_reference` must point at something the customer produced, such as their signed scope approval or their reply to your confirmation request. It can never repeat `customer_authority_reference`, `operator_delegation_reference` or `technical_access_reference`.
+- Leave `customer_confirmation_reference` empty while the state is `not_requested` or `requested`.
+- When the state is `declined` or `expired`, `lifecycle_state` cannot be `active`. Suspend or revoke the machine's authority until the customer confirms again.
+
+CI checks these rules against the template rows.
 
 <!-- register-columns:start -->
 | Column | Records | Values |
@@ -106,6 +115,7 @@ A platform permission is not the customer's authority. A row your MSP fills in i
 | `operator_delegation_reference` | Operator delegation: a pointer to what the MSP delegated to the machine within that authority. | Reference |
 | `technical_access_reference` | Technical access: a pointer to what the platform permits. Never the credential, token or key itself. | Reference |
 | `customer_confirmation_state` | Whether the customer has confirmed the authority record. Only the customer can make it `confirmed`. | `not_requested`, `requested`, `confirmed`, `declined`, `expired` |
+| `customer_confirmation_reference` | Customer confirmation: a pointer to the customer's own confirmation, decline or lapsed confirmation. Never an MSP-authored record. Required when the state is `confirmed`. | Reference |
 | `evidence_reference` | A pointer to evidence that can be re-checked. | Reference |
 | `lifecycle_state` | The current state of the machine's authority. | `active`, `suspended`, `revoked`, `superseded`, `expired` |
 | `revocation_route` | A pointer to how the authority is withdrawn and how an incident is raised. | Reference |
@@ -120,7 +130,8 @@ A platform permission is not the customer's authority. A row your MSP fills in i
 
 ### Safe use of the template
 
-- The example rows are synthetic. Delete them before you use the template.
+- The example rows are synthetic and describe one customer. Delete them before you use the template.
+- Keep one register per customer, or filter to a single `customer_organisation` before you share any part of it. Never send a register that holds another customer's rows outside your MSP. When you ask a customer to confirm their authority records, send them only their own rows.
 - Record pointers to where consents, credentials and evidence are held. Never put a credential, token, key or private customer evidence in the register.
 - Record roles rather than named individuals, to keep personal data out of the register.
 - Values pasted from MCP manifests, tool metadata or tickets can start with `=`, `+`, `-` or `@`. A spreadsheet may run such a value as a formula. Prefix it with an apostrophe (`'`) or rewrite it.

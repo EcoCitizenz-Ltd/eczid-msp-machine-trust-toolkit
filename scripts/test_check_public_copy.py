@@ -90,15 +90,18 @@ class FixtureTest(unittest.TestCase):
         rows[row][rows[0].index(column)] = value
         self.write_register(rows)
 
-    def assert_rule(self, rule: str) -> list[str]:
+    def assert_rule(self, rule: str, contains: str = "") -> list[str]:
         failures = gate.run_checks(self.root)
-        self.assertTrue(any(f.startswith(f"[{rule}]") for f in failures),
-                        f"expected a [{rule}] failure, got {failures}")
+        self.assertTrue(any(f.startswith(f"[{rule}]") and contains in f for f in failures),
+                        f"expected a [{rule}] failure containing {contains!r}, got {failures}")
         return failures
 
     def assert_no_rule(self, rule: str) -> None:
         failures = gate.run_checks(self.root)
         self.assertFalse(any(f.startswith(f"[{rule}]") for f in failures), failures)
+
+    def assert_clean(self) -> None:
+        self.assertEqual(gate.run_checks(self.root), [])
 
     # -- encoding ---------------------------------------------------------
 
@@ -131,9 +134,21 @@ class FixtureTest(unittest.TestCase):
         self.append("SUPPORT.md", "Uninsured losses are out of scope.")
         self.assert_no_rule("claims")
 
-    def test_gate_sources_are_exempt_from_content_rules(self):
-        self.write("scripts/extra_rule.py", 'PHRASE = "certified safe"\n')
-        self.assert_no_rule("claims")
+    def test_gate_sources_are_exempt_only_from_copy_rules(self):
+        # The two named gate sources may hold off-allowlist URLs as fixtures.
+        line = "\n# fixture: https://attacker.net/x\n"
+        for rel in sorted(gate.GATE_SOURCES):
+            with self.subTest(rel=rel):
+                saved = self.read(rel)
+                self.write(rel, saved + line)
+                self.assert_clean()
+                self.write(rel, saved)
+
+    def test_other_scripts_are_not_gate_sources(self):
+        self.write("scripts/extra_rule.py", "# see https://attacker.net/x\n")
+        self.assert_rule("url-host", "scripts/extra_rule.py")
+        self.assertFalse(gate.is_gate_source(Path("scripts/extra_rule.py")))
+        self.assertFalse(gate.is_gate_source(Path("tools/scripts/check_public_copy.py")))
 
     # -- url-host ---------------------------------------------------------
 
@@ -143,7 +158,7 @@ class FixtureTest(unittest.TestCase):
             "http://msp.ecocitizenz.com/trust-check",
             "https://ecocitizenz.com.attacker.net/",
             "https://attacker.net/?next=ecocitizenz.com",
-            "https://ecocitizenz.com@attacker.net/",
+            "https://ecocitizenz.com" + "@attacker.net/",
             "https://github.com/someone-else/repo",
             "https://github.com/marketplace/another-app",
             "https://raw.githubusercontent.com/someone-else/repo/main/x.png",
@@ -200,26 +215,140 @@ class FixtureTest(unittest.TestCase):
                 self.write("README.md", original + "\nTier price: " + text + "\n")
                 self.assert_rule("price")
 
+    def test_price_rule_bypasses_are_caught(self):
+        original = self.read("README.md")
+        for text in (
+            # space between the symbol or code and the amount
+            POUND + " 249 per month",
+            POUND + " 249",
+            "GBP  649",
+            # HTML entities, full-width and invisible characters, inline markup
+            "&pound;249 per month",
+            "&#163;249",
+            "&#xa3;249",
+            "&euro;395",
+            chr(0xFFE1) + "249",
+            POUND + chr(0x200B) + "249",
+            POUND + "**249** per month",
+            POUND + "<b>249</b>",
+            # recurring qualifiers that are not directly after the figure
+            POUND + "395 + VAT per month",
+            POUND + "395 (ex VAT) pcm",
+            POUND + "395 + VAT pm",
+            POUND + "395 every month",
+            POUND + "395 each managed client",
+            POUND + "395 for each client, billed monthly",
+            POUND + "395 a year",
+            POUND + "395/client/month",
+            POUND + "395/m",
+            POUND + "395 p.a.",
+            # the allowlisted amount in another currency or scale
+            "$395",
+            chr(0x20AC) + "395",
+            "395 USD",
+            "USD 395",
+            POUND + "395k",
+            POUND + "39,5",
+        ):
+            with self.subTest(text=text):
+                self.write("README.md", original + "\nTier price: " + text + "\n")
+                self.assert_rule("price")
+
+    def test_price_qualifier_on_soft_wrapped_line(self):
+        self.append("README.md", "The tier costs " + POUND + "395\nper month after the Baseline.")
+        self.assert_rule("price", "README.md:")
+
+    def test_price_qualifier_in_same_table_row(self):
+        self.append("README.md", "| Tier | Price | Billing |\n|---|---|---|\n| Growth | " + POUND + "395 | per month |")
+        self.assert_rule("price")
+
+    def test_price_checked_in_csv_rows(self):
+        self.set_cell(1, "next_action", "Quote " + POUND + "395 per client per month")
+        self.assert_rule("price", gate.REGISTER_PATH.as_posix())
+
     def test_one_off_baseline_price_allowed(self):
-        self.append("README.md", "The fixed-scope " + POUND + "395 Baseline.")
-        self.assert_no_rule("price")
+        for text in ("The fixed-scope " + POUND + "395 Baseline.",
+                     "The fixed-scope **" + POUND + "395 Client-Estate Machine Trust Baseline**.",
+                     "The Baseline costs &pound;395.00 once.",
+                     "The " + POUND + "395 Baseline is one-off. Recurring tiers are monthly and live on TrustOps.",
+                     "## The " + POUND + "395 Baseline\nMonthly tiers live on TrustOps.",
+                     "The " + POUND + "395 Baseline\n- monthly tiers live on TrustOps",
+                     "| Offer | Price |\n|---|---|\n| Baseline | " + POUND + "395 |\n| Tiers | monthly, on TrustOps |",
+                     "[Review the " + POUND + "395 Baseline ->](https://msp.ecocitizenz.com/audit?x=/m/month)"):
+            with self.subTest(text=text):
+                saved = self.read("README.md")
+                self.append("README.md", text)
+                self.assert_no_rule("price")
+                self.write("README.md", saved)
 
     # -- credential -------------------------------------------------------
 
     def test_credentials(self):
         original = self.read("README.md")
-        for text in ("api_key = abcd1234efgh5678",
-                     "-----BEGIN RSA PRIVATE KEY-----",
+        for text in ("api_key" + " = abcd1234efgh5678",
+                     "-----BEGIN RSA " + "PRIVATE KEY-----",
                      "AKIA" + "ABCDEFGHIJKLMNOP",
                      "ghp_" + "a" * 36):
             with self.subTest(text=text):
                 self.write("README.md", original + "\n" + text + "\n")
                 self.assert_rule("credential")
 
+    def test_credentials_in_python_files(self):
+        aws = "AKIA" + "ABCDEFGHIJKLMNOP"
+        for rel, text in (("tools/leak.py", 'AWS = "' + aws + '"\n'),
+                          ("examples/mcp_client.py", 'GITHUB_TOKEN = "' + "ghp_" + "a" * 36 + '"\n'),
+                          ("scripts/helper.py", "pass" + "word = 'hunter2hunter2'\n")):
+            with self.subTest(rel=rel):
+                self.write(rel, text)
+                self.assert_rule("credential", rel)
+                (self.root / rel).unlink()
+
+    def test_gate_sources_are_scanned_for_credentials_and_email(self):
+        aws = "AKIA" + "ABCDEFGHIJKLMNOP"
+        for rel in sorted(gate.GATE_SOURCES):
+            with self.subTest(rel=rel):
+                saved = self.read(rel)
+                self.write(rel, saved + "\n# " + aws + "\n# owner" + "@realcompany.co.uk\n")
+                self.assert_rule("credential", rel)
+                self.assert_rule("email", rel)
+                self.write(rel, saved)
+
+    def test_credentials_in_files_with_unlisted_or_no_extension(self):
+        token = "ghp_" + "a" * 36
+        for rel in ("templates/.env.example", "deploy.sh", "config/app.toml", "Dockerfile",
+                    ".github/scripts/run.ps1", "settings.ini"):
+            with self.subTest(rel=rel):
+                self.write(rel, "KEY=" + token + "\n")
+                self.assert_rule("credential", rel)
+                (self.root / rel).unlink()
+
+    def test_credentials_in_binary_files(self):
+        rel = "assets/logo.png"
+        (self.root / "assets").mkdir()
+        (self.root / rel).write_bytes(b"\x89PNG\r\n\x1a\n\xff\xfe")
+        self.assert_clean()  # binary files are not UTF-8 and need not be
+        (self.root / rel).write_bytes(b"\x89PNG\xff " + ("AKIA" + "ABCDEFGHIJKLMNOP").encode())
+        self.assert_rule("credential", rel)
+
+    def test_key_material_file_names(self):
+        for rel in ("certs/server.pem", "secrets/prod.key", "deploy/id_rsa", "id_ed25519",
+                    ".env", "templates/.env.local", "prod.env", "certs/client.pfx"):
+            with self.subTest(rel=rel):
+                self.write(rel, "placeholder\n")
+                self.assert_rule("credential", "key-material file name")
+                (self.root / rel).unlink()
+
+    def test_safe_key_adjacent_file_names(self):
+        for rel in ("templates/.env.example", "deploy/id_rsa.pub", "docs/keys.md"):
+            with self.subTest(rel=rel):
+                self.write(rel, "placeholder\n")
+                self.assert_clean()
+                (self.root / rel).unlink()
+
     # -- email ------------------------------------------------------------
 
     def test_email_domains(self):
-        self.append("SUPPORT.md", "Contact jane.doe@realcompany.co.uk")
+        self.append("SUPPORT.md", "Contact jane.doe" + "@realcompany.co.uk")
         self.assert_rule("email")
 
     def test_example_email_allowed(self):
@@ -290,6 +419,66 @@ class FixtureTest(unittest.TestCase):
     def test_readme_documented_values_must_match(self):
         self.replace("README.md", "`iot`, `sdk`", "`iot`, `sdk`, `robot`")
         self.assert_rule("register")
+
+    # -- register invariants ----------------------------------------------
+
+    def row_index(self, state: str) -> int:
+        rows = self.register_rows()
+        column = rows[0].index("customer_confirmation_state")
+        return next(i for i, r in enumerate(rows) if i and r[column] == state)
+
+    def test_register_confirmed_needs_customer_authority_and_confirmation(self):
+        row = self.row_index("confirmed")
+        for column in ("customer_authority_reference", "customer_confirmation_reference"):
+            with self.subTest(column=column):
+                saved = self.register_rows()
+                self.set_cell(row, column, "")
+                self.assert_rule("register", "confirmed needs a " + column)
+                self.write_register(saved)
+
+    def test_register_rejects_unbacked_confirmed_row(self):
+        # The row from the review: confirmed and active with nothing behind it.
+        rows = self.register_rows()
+        record = dict(zip(rows[0], rows[1]))
+        record.update(customer_authority_reference="", operator_delegation_reference="EXAMPLE-DELEG-0009",
+                      customer_confirmation_state="confirmed", customer_confirmation_reference="",
+                      receipt_reference="", lifecycle_state="active", action_class="HIGH-IMPACT-ADMIN")
+        rows.append([record[c] for c in rows[0]])
+        self.write_register(rows)
+        self.assert_rule("register", "confirmed needs a customer_authority_reference")
+        self.assert_rule("register", "confirmed needs a customer_confirmation_reference")
+
+    def test_register_confirmation_cannot_repeat_an_msp_pointer(self):
+        row = self.row_index("confirmed")
+        rows = self.register_rows()
+        for column in gate.MSP_AUTHORED_REFERENCES:
+            with self.subTest(column=column):
+                saved = self.register_rows()
+                self.set_cell(row, "customer_confirmation_reference", rows[row][rows[0].index(column)])
+                self.assert_rule("register", "repeats " + column)
+                self.write_register(saved)
+
+    def test_register_confirmation_reference_needs_a_customer_response(self):
+        for state in ("not_requested", "requested"):
+            with self.subTest(state=state):
+                saved = self.register_rows()
+                self.set_cell(self.row_index(state), "customer_confirmation_reference", "EXAMPLE-CUSTCONF-9")
+                self.assert_rule("register", "must be empty while customer_confirmation_state is " + repr(state))
+                self.write_register(saved)
+
+    def test_register_declined_or_expired_cannot_stay_active(self):
+        row = self.row_index("expired")
+        for state in ("declined", "expired"):
+            with self.subTest(state=state):
+                saved = self.register_rows()
+                self.set_cell(row, "customer_confirmation_state", state)
+                self.set_cell(row, "lifecycle_state", "active")
+                self.assert_rule("register", "lifecycle_state cannot be active")
+                self.write_register(saved)
+
+    def test_register_template_holds_one_customer(self):
+        self.set_cell(2, "customer_organisation", "Example Customer B")
+        self.assert_rule("register", "keep one register per customer")
 
     # -- register-synthetic -----------------------------------------------
 

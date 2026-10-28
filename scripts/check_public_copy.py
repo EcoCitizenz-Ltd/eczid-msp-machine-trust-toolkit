@@ -8,15 +8,21 @@ Every failure starts with the id of the rule that produced it:
   claims              no prohibited claim phrases in public copy
   url-host            every http(s) URL uses https and an allowlisted host
   legacy-route        no legacy MSP surface and no non-canonical Resolver path
-  price               no recurring price figures; one-off figures are allowlisted
-  credential          no credential-shaped values
+  price               no recurring price figures; the one-off GBP 395 Baseline
+                      figure is the only price allowed
+  credential          no credential-shaped values in any file, whatever its
+                      extension, and no key-material files (.pem, .key, id_rsa,
+                      .env and similar)
   email               email addresses only at ecocitizenz.com or example domains
   register            the register CSV matches its documented contract
   register-synthetic  the register template holds only synthetic example rows
   readme              README keeps one primary CTA and its required caveats
 
-The gate sources in scripts/*.py hold the rule definitions themselves, so they
-are exempt from the content rules. They are still checked for encoding.
+The two gate sources, scripts/check_public_copy.py and
+scripts/test_check_public_copy.py, hold rule definitions and fixtures, so they
+are exempt from the claims, price, url-host and legacy-route rules. Like every
+other file they are still checked for encoding, credentials and email
+addresses.
 """
 
 from __future__ import annotations
@@ -24,9 +30,11 @@ from __future__ import annotations
 import argparse
 import csv
 import datetime
+import html
 import io
 import re
 import sys
+import unicodedata
 from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
 
@@ -34,10 +42,13 @@ from urllib.parse import parse_qs, urlsplit
 # Scope
 # --------------------------------------------------------------------------
 
+# Files with these extensions must be valid UTF-8 and get every content rule.
+# Every other file is still scanned for credentials (and, when it decodes as
+# UTF-8, for email addresses).
 TEXT_EXTS = {".md", ".txt", ".json", ".yml", ".yaml", ".csv", ".html", ".js", ".ts", ".py"}
-CONTENT_EXTS = TEXT_EXTS - {".py"}
 PROSE_EXTS = {".md", ".txt", ".csv", ".html"}
 SKIP_DIRS = {".git", "__pycache__", "node_modules", ".venv", "venv"}
+GATE_SOURCES = {"scripts/check_public_copy.py", "scripts/test_check_public_copy.py"}
 
 README_PATH = Path("README.md")
 REGISTER_PATH = Path("templates/customer-machine-trust-register.csv")
@@ -72,9 +83,16 @@ PROHIBITED_CLAIMS = (
     "court-defensible",
 )
 
+# URL allowlist. The base list is ecocitizenz.com and its subdomains,
+# resolver.ecocitizenz.org, the GitHub organisation EcoCitizenz-Ltd and the
+# example domains. Each other entry exists only because README links it:
+#   - the GitHub owner "Ecocitizenz", for the ECZ-ID MCP Verifier repository;
+#   - GitHub Marketplace listings whose slug starts with "ecz-id-";
+#   - VS Marketplace items published by "ecocitizenz.";
+#   - raw GitHub content under EcoCitizenz-Ltd, for the README image.
+# Do not add an entry unless README links it, and remove an entry when README
+# stops linking it.
 EXAMPLE_HOSTS = ("example.com", "example.org")
-# github.com/Ecocitizenz is allowed only because README already links the MCP
-# Verifier there; see MAINTAINERS_NOTES.md before adding any other owner.
 GITHUB_OWNERS = {"ecocitizenz-ltd", "ecocitizenz"}
 GITHUB_MARKETPLACE_PREFIX = "ecz-id-"
 VS_MARKETPLACE_PUBLISHER = "ecocitizenz."
@@ -90,23 +108,46 @@ RESOLVER_RECORD_PATH = re.compile(r"/p/ECZ-[A-Z]{2}-[A-Z0-9]+/?")
 RESOLVER_RECORD_URL = re.compile(r"https://resolver\.ecocitizenz\.org/p/ECZ-[A-Z]{2}-[A-Z0-9]+")
 
 # Prices live in TrustOps. The only figure public copy may carry is the
-# one-off Baseline price that the MSP site also publishes.
-ALLOWED_ONE_OFF_AMOUNTS = {"395"}
-_AMOUNT = r"(\d[\d,]*(?:\.\d+)?)"
+# one-off GBP Baseline price that the MSP site also publishes. The allowlist
+# holds (currency, amount) pairs, so the same amount in another currency fails.
+ALLOWED_ONE_OFF_PRICES = {("GBP", "395")}
+SYMBOL_CURRENCY = {"\u00a3": "GBP", "$": "USD", "\u20ac": "EUR", "\u00a5": "JPY"}
+_CODES = r"GBP|USD|EUR|AUD|CAD|NZD|CHF|JPY"
+_AMOUNT = r"\d[\d,]*(?:\.\d+)?"
 PRICE_RE = re.compile(
-    r"(?:\u00a3|\$|\u20ac|\bGBP\s?|\bUSD\s?|\bEUR\s?)" + _AMOUNT + r"|" + _AMOUNT + r"\s?(?:GBP|USD|EUR)\b",
+    r"(?:(?P<sym>[\u00a3$\u20ac\u00a5])|\b(?P<code1>" + _CODES + r"))\s*(?P<amt1>" + _AMOUNT + r")"
+    r"|(?P<amt2>" + _AMOUNT + r")\s*(?P<code2>" + _CODES + r")\b",
     re.I,
 )
+WELL_FORMED_AMOUNT = re.compile(r"(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?")
+AMOUNT_MULTIPLIER = re.compile(r"\s*(?:k|m|mn|bn|million|billion|thousand)\b", re.I)
+
+# A recurring qualifier anywhere in the rest of the clause after the figure.
+_UNITS = (r"(?:month|mo|mth|year|yr|annum|week|wk|quarter|qtr|day|client|customer|tenant"
+          r"|seat|user|endpoint|device|machine|estate|site|licen[cs]e)s?")
+_VAT = r"(?:(?:\+|plus|ex|exc|excl|inc|incl)\.?\s*)?VAT"
 RECURRING_AFTER = re.compile(
-    r"^\W{0,3}(?:/\s?(?:mo|month|yr|year|annum)\b"
-    r"|per\s+(?:month|year|annum|client|customer|tenant|seat|user|endpoint)\b"
-    r"|a\s+(?:month|year)\b|monthly\b|annually\b|yearly\b|pcm\b|p/?m\b|p/?a\b)",
+    # Directly after the figure, optionally after a VAT note:
+    # "/month", "/m", "/client/month", "pm", "p.a.".
+    r"^[\s()]*(?:" + _VAT + r"[\s()]*)?"
+    r"(?:/\s*(?:[a-z]+\s*/\s*)?(?:m|y|a|q|" + _UNITS + r")\b|p\.?\s?[ma]\b\.?)"
+    # Anywhere in the clause: "per month", "every calendar month",
+    # "each managed client", "a year", "monthly", "pcm".
+    r"|\b(?:per|every|each)\s+(?:[a-z]+\s+)?" + _UNITS + r"\b"
+    r"|\ban?\s+(?:month|year|week|quarter)\b"
+    r"|\b(?:monthly|annually|annual|yearly|quarterly|weekly|pcm)\b",
     re.I,
 )
 RECURRING_BEFORE = re.compile(
     r"(?:monthly|per\s+month|annual(?:ly)?|yearly|subscription|recurring)\W+(?:\w+\W+){0,3}$",
     re.I,
 )
+# A clause ends at ; ! ? or a full stop followed by a space or the end.
+SENTENCE_END = re.compile(r"[;!?]|\.(?=\s|\Z)")
+# A Markdown line that starts a new block, so the clause above it has ended.
+BLOCK_START = re.compile(r"[ \t\r]*(?:$|#{1,6}(?:\s|$)|>|\||[*+-](?:\s|$)|\d+[.)](?:\s|$))")
+_TAG_RE = re.compile(r"<[^<>\n]*>")
+_EMPHASIS_RE = re.compile(r"[*_`~\\]")
 
 CREDENTIAL_PATTERNS = (
     ("private key block", re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----")),
@@ -119,6 +160,12 @@ CREDENTIAL_PATTERNS = (
         r"\s*[:=]\s*['\"]?[^\s'\",]{6,}",
         re.I,
     )),
+)
+KEY_FILE_SUFFIXES = {".pem", ".key", ".p8", ".p12", ".pfx", ".ppk", ".jks", ".keystore", ".env"}
+KEY_FILE_NAMES = re.compile(
+    r"id_(?:rsa|dsa|ecdsa|ed25519)(?:[._-].*)?"
+    r"|\.env(?:\.(?!(?:example|sample|template)$).+)?",
+    re.I,
 )
 
 EMAIL_RE = re.compile(r"\b[A-Za-z0-9._%+-]+@([A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,})\b")
@@ -142,6 +189,7 @@ REGISTER_COLUMNS = (
     "operator_delegation_reference",
     "technical_access_reference",
     "customer_confirmation_state",
+    "customer_confirmation_reference",
     "evidence_reference",
     "lifecycle_state",
     "revocation_route",
@@ -163,6 +211,12 @@ CONTROLLED_VALUES = {
 }
 DATE_COLUMNS = ("last_reviewed", "review_due")
 FORMULA_PREFIXES = ("=", "+", "-", "@", "\t", "\r")
+# Confirmation states in which the customer has responded, so a pointer to the
+# customer's own confirmation artefact can exist.
+CUSTOMER_RESPONSE_STATES = {"confirmed", "declined", "expired"}
+# MSP-authored pointers that can never stand in for the customer's confirmation.
+MSP_AUTHORED_REFERENCES = ("customer_authority_reference", "operator_delegation_reference",
+                           "technical_access_reference")
 
 # Synthetic-example contract for the shipped template rows.
 SYNTHETIC_PREFIXES = {
@@ -173,6 +227,7 @@ SYNTHETIC_PREFIXES = {
     "customer_authority_reference": "EXAMPLE-",
     "operator_delegation_reference": "EXAMPLE-",
     "technical_access_reference": "EXAMPLE-",
+    "customer_confirmation_reference": "EXAMPLE-",
     "evidence_reference": "EXAMPLE-",
     "revocation_route": "EXAMPLE-",
     "receipt_reference": "EXAMPLE-",
@@ -190,6 +245,7 @@ README_REQUIRED = (
     ("not, by itself, proof of control", "the Resolver binding caveat"),
     ("are not yet public", "the caveat that machine Capability routes are not yet public"),
     ("templates/customer-machine-trust-register.csv", "the link to the register CSV"),
+    ("Keep one register per customer", "the one-register-per-customer warning"),
 )
 
 # --------------------------------------------------------------------------
@@ -209,17 +265,26 @@ def _phrase_pattern(phrase: str) -> re.Pattern[str]:
 CLAIM_PATTERNS = tuple((phrase, _phrase_pattern(phrase)) for phrase in PROHIBITED_CLAIMS)
 
 
-def iter_text_files(root: Path):
+def iter_files(root: Path):
     for path in sorted(root.rglob("*")):
         rel = path.relative_to(root)
         if any(part in SKIP_DIRS for part in rel.parts):
             continue
-        if path.is_file() and path.suffix.lower() in TEXT_EXTS:
+        if path.is_file():
             yield rel, path
 
 
 def is_gate_source(rel: Path) -> bool:
-    return rel.parts[:1] == ("scripts",) and rel.suffix.lower() == ".py"
+    return rel.as_posix() in GATE_SOURCES
+
+
+def key_file_problem(rel: Path) -> str | None:
+    name = rel.name
+    if name.lower().endswith(".pub"):
+        return None
+    if rel.suffix.lower() in KEY_FILE_SUFFIXES or KEY_FILE_NAMES.fullmatch(name):
+        return f"key-material file name {name!r}"
+    return None
 
 
 def extract_urls(text: str):
@@ -259,6 +324,55 @@ def url_host_problem(url: str) -> str | None:
     return f"host {host or '(none)'} is not on the allowlist"
 
 
+def _normalise_price_line(line: str) -> str:
+    """Return the line as a reader sees it rendered, for the price rule.
+
+    HTML entities are decoded, compatibility characters (full-width symbols
+    and digits, non-breaking spaces) are folded, invisible format characters
+    are dropped, and HTML tags and Markdown emphasis are removed. The result
+    never contains a newline, so line numbers are preserved.
+    """
+    line = html.unescape(line)
+    line = unicodedata.normalize("NFKC", line)
+    line = "".join(ch for ch in line if unicodedata.category(ch) != "Cf")
+    line = _TAG_RE.sub(" ", line)
+    line = _EMPHASIS_RE.sub("", line)
+    return re.sub(r"[\r\n\v\f\x1c-\x1e\x85\u2028\u2029]", " ", line)
+
+
+def _clause_after(norm: str, pos: int, raw_lines: list[str], csv_file: bool) -> str:
+    """Return the text from pos to the end of its clause.
+
+    A clause ends at a sentence break, or at a line break unless the next line
+    continues the same Markdown paragraph (a soft wrap). Headings and table
+    rows always end at the line break, and so does every CSV row.
+    """
+    end_match = SENTENCE_END.search(norm, pos)
+    end = end_match.start() if end_match else len(norm)
+    search_from = pos
+    while True:
+        newline = norm.find("\n", search_from, end)
+        if newline == -1:
+            break
+        line_no = norm.count("\n", 0, newline)  # 0-based index of the current line
+        current = raw_lines[line_no].lstrip()
+        following = raw_lines[line_no + 1] if line_no + 1 < len(raw_lines) else ""
+        if csv_file or current.startswith(("#", "|")) or BLOCK_START.match(following):
+            end = newline
+            break
+        search_from = newline + 1
+    return norm[pos:end]
+
+
+def _canonical_amount(raw: str) -> str:
+    if not WELL_FORMED_AMOUNT.fullmatch(raw):
+        return raw
+    amount = raw.replace(",", "")
+    if "." in amount:
+        amount = amount.rstrip("0").rstrip(".")
+    return amount
+
+
 # --------------------------------------------------------------------------
 # Rules
 # --------------------------------------------------------------------------
@@ -276,10 +390,44 @@ def check_encoding(rel: Path, path: Path, failures: list[str]) -> str | None:
     return text
 
 
+def check_prices(rel: Path, text: str, failures: list[str]) -> None:
+    name = rel.as_posix()
+    raw_lines = text.split("\n")
+    norm = "\n".join(_normalise_price_line(line) for line in raw_lines)
+    csv_file = rel.suffix.lower() == ".csv"
+    for m in PRICE_RE.finditer(norm):
+        symbol = m.group("sym")
+        currency = SYMBOL_CURRENCY[symbol] if symbol else (m.group("code1") or m.group("code2")).upper()
+        amount = _canonical_amount(m.group("amt1") or m.group("amt2"))
+        after = URL_RE.sub(" ", _clause_after(norm, m.end(), raw_lines, csv_file))
+        before = URL_RE.sub(" ", norm[norm.rfind("\n", 0, m.start()) + 1:m.start()])[-60:]
+        figure = m.group(0)
+        where = f"{name}:{_line(norm, m.start())}"
+        if RECURRING_AFTER.search(after) or RECURRING_BEFORE.search(before):
+            failures.append(f"[price] {where}: recurring price figure {figure!r}; recurring prices live in TrustOps")
+        elif (currency, amount) not in ALLOWED_ONE_OFF_PRICES or AMOUNT_MULTIPLIER.match(norm, m.end()):
+            failures.append(
+                f"[price] {where}: price figure {figure!r} is not on the one-off allowlist;"
+                " prices live in TrustOps"
+            )
+
+
+def check_secrets(rel: Path, text: str, failures: list[str], emails: bool = True) -> None:
+    name = rel.as_posix()
+    for label, pattern in CREDENTIAL_PATTERNS:
+        for m in pattern.finditer(text):
+            failures.append(f"[credential] {name}:{_line(text, m.start())}: {label}")
+    if not emails:
+        return
+    for m in EMAIL_RE.finditer(text):
+        domain = m.group(1).lower()
+        if domain not in ALLOWED_EMAIL_DOMAINS:
+            failures.append(f"[email] {name}:{_line(text, m.start())}: address at {domain} is not allowed")
+
+
 def check_content(rel: Path, text: str, failures: list[str]) -> None:
     name = rel.as_posix()
-    suffix = rel.suffix.lower()
-    prose = suffix in PROSE_EXTS
+    prose = rel.suffix.lower() in PROSE_EXTS
 
     if prose:
         for phrase, pattern in CLAIM_PATTERNS:
@@ -301,27 +449,32 @@ def check_content(rel: Path, text: str, failures: list[str]) -> None:
             failures.append(f"[legacy-route] {name}:{_line(text, m.start())}: {why}: {m.group(0)!r}")
 
     if prose:
-        for m in PRICE_RE.finditer(text):
-            amount = (m.group(1) or m.group(2)).replace(",", "")
-            if amount.endswith(".00"):
-                amount = amount[:-3]
-            # Look for a recurring qualifier on the same line only.
-            after = text[m.end():m.end() + 30].split("\n", 1)[0]
-            before = text[text.rfind("\n", 0, m.start()) + 1:m.start()][-40:]
-            where = f"{name}:{_line(text, m.start())}"
-            if RECURRING_AFTER.search(after) or RECURRING_BEFORE.search(before):
-                failures.append(f"[price] {where}: recurring price figure {m.group(0)!r}; recurring prices live in TrustOps")
-            elif amount not in ALLOWED_ONE_OFF_AMOUNTS:
-                failures.append(f"[price] {where}: price figure {m.group(0)!r} is not on the one-off allowlist; prices live in TrustOps")
+        check_prices(rel, text, failures)
 
-    for label, pattern in CREDENTIAL_PATTERNS:
-        for m in pattern.finditer(text):
-            failures.append(f"[credential] {name}:{_line(text, m.start())}: {label}")
+    check_secrets(rel, text, failures)
 
-    for m in EMAIL_RE.finditer(text):
-        domain = m.group(1).lower()
-        if domain not in ALLOWED_EMAIL_DOMAINS:
-            failures.append(f"[email] {name}:{_line(text, m.start())}: address at {domain} is not allowed")
+
+def check_file(rel: Path, path: Path, failures: list[str]) -> None:
+    problem = key_file_problem(rel)
+    if problem:
+        failures.append(f"[credential] {rel.as_posix()}: {problem}; never commit key material")
+    if rel.suffix.lower() in TEXT_EXTS:
+        text = check_encoding(rel, path, failures)
+        if text is None:
+            return
+        if is_gate_source(rel):
+            check_secrets(rel, text, failures)
+        else:
+            check_content(rel, text, failures)
+        return
+    # Any other file: scan it for secrets whatever its extension. Bytes that
+    # are not UTF-8 are read as Latin-1 so a credential cannot hide behind one
+    # invalid byte; email addresses are only checked in real text.
+    data = path.read_bytes()
+    try:
+        check_secrets(rel, data.decode("utf-8"), failures)
+    except UnicodeDecodeError:
+        check_secrets(rel, data.decode("latin-1"), failures, emails=False)
 
 
 def readme_documented_columns(readme: str) -> tuple[list[str], dict[str, set[str]]] | None:
@@ -338,6 +491,33 @@ def readme_documented_columns(readme: str) -> tuple[list[str], dict[str, set[str
         names.append(m.group(1))
         values[m.group(1)] = set(re.findall(r"`([^`]+)`", cells[-1])) if len(cells) > 2 else set()
     return names, values
+
+
+def check_register_row(where: str, record: dict[str, str], failures: list[str]) -> None:
+    """Cross-field rules that keep a row's authority claims consistent."""
+    state = record.get("customer_confirmation_state", "")
+    confirmation = record.get("customer_confirmation_reference", "")
+    if state == "confirmed":
+        if not record.get("customer_authority_reference", ""):
+            failures.append(f"[register] {where}: confirmed needs a customer_authority_reference")
+        if not confirmation:
+            failures.append(
+                f"[register] {where}: confirmed needs a customer_confirmation_reference"
+                " pointing at the customer's own confirmation"
+            )
+    if confirmation and state not in CUSTOMER_RESPONSE_STATES:
+        failures.append(
+            f"[register] {where}: customer_confirmation_reference must be empty while"
+            f" customer_confirmation_state is {state or 'empty'!r}"
+        )
+    for column in MSP_AUTHORED_REFERENCES:
+        if confirmation and confirmation == record.get(column, ""):
+            failures.append(
+                f"[register] {where}: customer_confirmation_reference repeats {column};"
+                " an MSP-authored pointer is not the customer's confirmation"
+            )
+    if state in {"declined", "expired"} and record.get("lifecycle_state", "") == "active":
+        failures.append(f"[register] {where}: lifecycle_state cannot be active while customer_confirmation_state is {state!r}")
 
 
 def check_register(root: Path, failures: list[str]) -> None:
@@ -366,6 +546,7 @@ def check_register(root: Path, failures: list[str]) -> None:
             f" (missing={missing}, unexpected={extra}, order must match README)"
         )
 
+    customers: set[str] = set()
     for row_no, row in enumerate(rows, start=1):
         for col_no, cell in enumerate(row):
             column = header[col_no] if col_no < len(header) else f"column {col_no + 1}"
@@ -379,6 +560,8 @@ def check_register(root: Path, failures: list[str]) -> None:
             failures.append(f"[register] {name}:{row_no}: has {len(row)} cells, header has {len(header)}")
             continue
         record = dict(zip(header, row))
+        if record.get("customer_organisation", ""):
+            customers.add(record["customer_organisation"])
         for column, allowed in CONTROLLED_VALUES.items():
             value = record.get(column, "")
             if value and value not in allowed:
@@ -395,6 +578,7 @@ def check_register(root: Path, failures: list[str]) -> None:
         link = record.get("resolver_recheck_link", "")
         if link and not RESOLVER_RECORD_URL.fullmatch(link):
             failures.append(f"[register] {name}:{row_no}: resolver_recheck_link must be https://resolver.ecocitizenz.org/p/<ECZ-ID>")
+        check_register_row(f"{name}:{row_no}", record, failures)
         for column, prefix in SYNTHETIC_PREFIXES.items():
             value = record.get(column, "")
             if value and not value.startswith(prefix):
@@ -402,6 +586,11 @@ def check_register(root: Path, failures: list[str]) -> None:
                     f"[register-synthetic] {name}:{row_no}: {column} {value!r} must start with {prefix!r};"
                     " template rows must be obviously synthetic"
                 )
+    if len(customers) > 1:
+        failures.append(
+            f"[register] {name}: template rows name {len(customers)} customers {sorted(customers)};"
+            " keep one register per customer"
+        )
 
     readme_path = root / README_PATH
     if not readme_path.is_file():
@@ -447,10 +636,8 @@ def check_readme(root: Path, failures: list[str]) -> None:
 def run_checks(root: Path) -> list[str]:
     root = Path(root)
     failures: list[str] = []
-    for rel, path in iter_text_files(root):
-        text = check_encoding(rel, path, failures)
-        if text is not None and not is_gate_source(rel) and rel.suffix.lower() in CONTENT_EXTS:
-            check_content(rel, text, failures)
+    for rel, path in iter_files(root):
+        check_file(rel, path, failures)
     check_register(root, failures)
     check_readme(root, failures)
     return failures
