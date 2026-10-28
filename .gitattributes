@@ -1,1 +1,4 @@
-scripts/check_public_copy.py linguist-generated
+# The CI quality gate and its tests must stay visible in pull-request diffs,
+# so they are never marked linguist-generated. They are only kept out of the
+# repository language statistics.
+scripts/*.py linguist-detectable=false
