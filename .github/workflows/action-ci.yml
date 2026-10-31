@@ -1,0 +1,47 @@
+name: MSP Action CI
+
+on:
+  push:
+    branches: [main, "feat/**"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: msp-action-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Unit tests
+        run: node --test tests/*.test.js
+
+  action-smoke:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Run local Action
+        id: inventory
+        uses: ./
+        with:
+          client-id: ci-fixture
+          output: eczid-msp-machine-estate.json
+          fail-on: never
+      - name: Show outputs
+        shell: bash
+        run: |
+          echo "state=${{ steps.inventory.outputs.result-state }}"
+          echo "machine-count=${{ steps.inventory.outputs.machine-count }}"
+          echo "baseline-hash=${{ steps.inventory.outputs.baseline-hash }}"
+          test -f eczid-msp-machine-estate.json
