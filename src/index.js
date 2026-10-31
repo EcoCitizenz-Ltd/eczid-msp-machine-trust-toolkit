@@ -131,7 +131,7 @@ function classifyFile(relative, text, findings, seen, identityRefs, signals) {
   // GitHub Actions and reusable workflows.
   if (/^\.github\/workflows\/.*\.(ya?ml)$/i.test(relative)) {
     addFinding(findings, seen, 'github_workflow', relative, 'GitHub Actions workflow');
-    const uses = uniqueMatches(text, /^\s*uses:\s*([^\s#]+).*$/gim);
+    const uses = uniqueMatches(text, /^\s*(?:-\s*)?uses:\s*([^\s#]+).*$/gim);
     for (const ref of uses) {
       addFinding(findings, seen, 'action_dependency', relative, ref, {
         immutable_ref: /@[0-9a-f]{40}$/i.test(ref)
