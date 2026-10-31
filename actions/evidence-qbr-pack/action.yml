@@ -1,0 +1,49 @@
+name: ECZ-ID MSP Evidence & QBR Pack
+description: Turn observable GitHub and machine-estate facts into a deterministic client evidence pack for QBR, vCISO, insurance and regulatory review workflows.
+author: EcoCitizenz Ltd
+branding:
+  icon: file-text
+  color: green
+inputs:
+  path:
+    description: Repository-relative path to inspect.
+    required: false
+    default: .
+  client-id:
+    description: Optional MSP/customer identifier recorded locally in the pack.
+    required: false
+    default: ""
+  profile:
+    description: generic, qbr, vciso, cyber-insurance, nis2, iso27001, soc2, or dora.
+    required: false
+    default: qbr
+  output-json:
+    description: Repository-relative JSON evidence pack path.
+    required: false
+    default: eczid-msp-evidence-pack.json
+  output-markdown:
+    description: Repository-relative Markdown client summary path.
+    required: false
+    default: eczid-msp-evidence-pack.md
+  fail-on:
+    description: Exit policy. Supported values are invalid or never.
+    required: false
+    default: invalid
+outputs:
+  result-state:
+    description: EVIDENCE_PACK_CREATED or INVALID_INPUT.
+  evidence-hash:
+    description: SHA-256 hash of the normalized technical evidence payload.
+  observed-count:
+    description: Number of evidence observations marked observed.
+  not-observed-count:
+    description: Number of evidence observations marked not_observed.
+  json-path:
+    description: Path to the JSON evidence pack.
+  markdown-path:
+    description: Path to the Markdown client summary.
+  next-action-url:
+    description: Contextual recurring-service next step when a managed-evidence need is indicated.
+runs:
+  using: node24
+  main: index.js
