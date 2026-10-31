@@ -2,12 +2,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { inventory, normalizedHash, safeResolve, safeOutputPath } = require('../../src/index.js');
-
-function input(name, fallback = '') {
-  const value = process.env[`INPUT_${name.toUpperCase().replace(/-/g, '_')}`];
-  return value == null || value === '' ? fallback : value;
-}
+const { input, inventory, normalizedHash, safeResolve, safeOutputPath } = require('../../src/index.js');
 
 function setOutput(name, value) {
   if (!process.env.GITHUB_OUTPUT) return;
