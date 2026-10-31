@@ -10,6 +10,16 @@ The next estate also includes MCP servers, AI agents, APIs, software workloads, 
 
 This repository gives you a practical starting point for discovering those surfaces, deciding what deserves deeper review, and moving the right client estates into a repeatable Machine Trust service.
 
+## GitHub Action: MSP Machine Estate Inventory
+
+This repository now contains the pre-release **ECZ-ID MSP Machine Estate Inventory** GitHub Action. It locally inventories supported machine and machine-consumed surfaces declared in a repository, including GitHub workflows and Action dependencies, agent or agentic-workflow definitions, MCP configuration, Plugin/Action definitions, OpenAPI surfaces, package/SDK metadata and service/workload declarations.
+
+The Action produces a JSON inventory, a deterministic baseline hash, machine-readable outputs and a GitHub Job Summary. It can also observe ECZ-ID or Resolver references when they are already declared.
+
+Its result states are deliberately narrow: `NO_MACHINE_SURFACES`, `MACHINE_ESTATE_OBSERVED`, `REVIEW_RECOMMENDED` and `INVALID_INPUT`. Missing ECZ-ID identity is a neutral observation and never means unsafe, non-compliant, untrusted or failed.
+
+The implementation is local-first: it uploads no repository source and contains no hidden telemetry. A Marketplace release has **not** yet been published; release and listing follow only after the implementation and public usage contract complete their release gates.
+
 ## Start with the client-estate question, not the product
 
 ### 1. Run the free Machine Trust Check
