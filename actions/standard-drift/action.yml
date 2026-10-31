@@ -1,0 +1,47 @@
+name: ECZ-ID MSP Standard Drift
+description: Compare a customer repository's current machine-trust projection with an MSP-approved baseline without making a universal trust or compliance verdict.
+author: EcoCitizenz Ltd
+branding:
+  icon: git-compare
+  color: green
+inputs:
+  path:
+    description: Repository-relative path to inspect.
+    required: false
+    default: .
+  client-id:
+    description: Optional MSP/customer identifier included in the proposed/current projection.
+    required: false
+    default: ""
+  baseline:
+    description: Repository-relative path to the approved baseline JSON.
+    required: false
+    default: .eczid/msp-baseline.json
+  output:
+    description: Repository-relative path for the drift report or proposed baseline.
+    required: false
+    default: eczid-msp-standard-drift.json
+  mode:
+    description: check or propose. Propose emits a baseline proposal but never commits it.
+    required: false
+    default: check
+  fail-on:
+    description: Exit policy. Supported values are invalid or never. Drift does not fail by default.
+    required: false
+    default: invalid
+outputs:
+  result-state:
+    description: NO_CHANGE, CHANGED, BASELINE_PROPOSED, or INVALID_INPUT.
+  current-hash:
+    description: SHA-256 hash of the current normalized projection.
+  expected-hash:
+    description: SHA-256 hash of the approved baseline projection when present.
+  changed-field-count:
+    description: Number of top-level projection fields that differ.
+  report-path:
+    description: Path to the generated drift report or proposed baseline.
+  next-action-url:
+    description: One contextual next step when drift is observed.
+runs:
+  using: node24
+  main: index.js
