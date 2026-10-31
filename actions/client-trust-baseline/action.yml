@@ -14,7 +14,7 @@ inputs:
     required: false
     default: ""
   profile:
-    description: Review profile: onboarding, quarterly-review, pre-renewal, or continuous.
+    description: "Review profile: onboarding, quarterly-review, pre-renewal, or continuous."
     required: false
     default: onboarding
   output:
