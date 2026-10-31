@@ -18,7 +18,8 @@ const TEXT_EXTENSIONS = new Set([
 ]);
 
 function input(name, fallback = '') {
-  const value = process.env[`INPUT_${name.toUpperCase().replace(/-/g, '_')}`];
+  const upper = name.toUpperCase();
+  const value = process.env[`INPUT_${upper}`] ?? process.env[`INPUT_${upper.replace(/-/g, '_')}`];
   return value == null || value === '' ? fallback : value;
 }
 
@@ -128,7 +129,6 @@ function classifyFile(relative, text, findings, seen, identityRefs, signals) {
   const lower = relative.toLowerCase();
   const base = path.basename(lower);
 
-  // GitHub Actions and reusable workflows.
   if (/^\.github\/workflows\/.*\.(ya?ml)$/i.test(relative)) {
     addFinding(findings, seen, 'github_workflow', relative, 'GitHub Actions workflow');
     const uses = uniqueMatches(text, /^\s*(?:-\s*)?uses:\s*([^\s#]+).*$/gim);
@@ -138,55 +138,17 @@ function classifyFile(relative, text, findings, seen, identityRefs, signals) {
       });
     }
     if (/\bpull_request_target\s*:/i.test(text)) signals.pull_request_target = true;
-    if (/\bruns-on\s*:\s*(?:\[[^\]]*\bself-hosted\b[^\]]*\]|self-hosted)\b/i.test(text)) {
-      signals.self_hosted_runner = true;
-    }
+    if (/\bruns-on\s*:\s*(?:\[[^\]]*\bself-hosted\b[^\]]*\]|self-hosted)\b/i.test(text)) signals.self_hosted_runner = true;
     if (/\bid-token\s*:\s*write\b/i.test(text)) signals.oidc = true;
     if (/\bpermissions\s*:\s*write-all\b/i.test(text)) signals.write_all = true;
   }
+  if (/^\.github\/workflows\/.*\.md$/i.test(relative) || /^\.github\/agents\/.*\.(?:md|ya?ml|json)$/i.test(relative)) addFinding(findings, seen, 'agent', relative, 'Agent or agentic workflow definition');
+  if (/(^|\/)(?:\.mcp|mcp[^/]*)\.(?:json|jsonc|ya?ml|toml)$/i.test(relative) || /\bmcpservers?\b/i.test(text) || /\bmcp:\/\//i.test(text)) addFinding(findings, seen, 'mcp', relative, 'MCP configuration or reference');
+  if (base === 'action.yml' || base === 'action.yaml' || /(^|\/)plugin\.json$/i.test(relative) || /\.claude-plugin\//i.test(relative)) addFinding(findings, seen, 'plugin', relative, 'Plugin or GitHub Action definition');
+  if (/((^|\/)(openapi|swagger)[^/]*\.(json|ya?ml)$)/i.test(relative) || /^\s*(openapi|swagger)\s*:/im.test(text)) addFinding(findings, seen, 'api', relative, 'OpenAPI/Swagger declaration');
+  if (['package.json', 'pyproject.toml', 'cargo.toml', 'go.mod'].includes(base) || /\.(?:csproj|fsproj|vbproj)$/i.test(base)) addFinding(findings, seen, 'sdk_or_package', relative, 'Package or SDK metadata');
+  if (['dockerfile', 'containerfile'].includes(base) || /(^|\/)(docker-compose|compose)\.(ya?ml)$/i.test(relative) || /(^|\/)k8s\//i.test(relative) || /(^|\/)kubernetes\//i.test(relative) || /\.(tf|tfvars)$/i.test(relative) || /^\s*kind\s*:\s*(Deployment|StatefulSet|DaemonSet|Job|CronJob|Service)\b/im.test(text)) addFinding(findings, seen, 'service_workload', relative, 'Service, workload, container, or infrastructure declaration');
 
-  // GitHub agentic workflows and agent definitions.
-  if (/^\.github\/workflows\/.*\.md$/i.test(relative) || /^\.github\/agents\/.*\.(?:md|ya?ml|json)$/i.test(relative)) {
-    addFinding(findings, seen, 'agent', relative, 'Agent or agentic workflow definition');
-  }
-
-  // MCP declarations/configuration.
-  if (
-    /(^|\/)(?:\.mcp|mcp[^/]*)\.(?:json|jsonc|ya?ml|toml)$/i.test(relative) ||
-    /\bmcpservers?\b/i.test(text) ||
-    /\bmcp:\/\//i.test(text)
-  ) {
-    addFinding(findings, seen, 'mcp', relative, 'MCP configuration or reference');
-  }
-
-  // Plugin / Action publisher surfaces.
-  if (base === 'action.yml' || base === 'action.yaml' || /(^|\/)plugin\.json$/i.test(relative) || /\.claude-plugin\//i.test(relative)) {
-    addFinding(findings, seen, 'plugin', relative, 'Plugin or GitHub Action definition');
-  }
-
-  // API surfaces.
-  if (/((^|\/)(openapi|swagger)[^/]*\.(json|ya?ml)$)/i.test(relative) || /^\s*(openapi|swagger)\s*:/im.test(text)) {
-    addFinding(findings, seen, 'api', relative, 'OpenAPI/Swagger declaration');
-  }
-
-  // SDK/package publisher surfaces.
-  if (['package.json', 'pyproject.toml', 'cargo.toml', 'go.mod'].includes(base) || /\.(?:csproj|fsproj|vbproj)$/i.test(base)) {
-    addFinding(findings, seen, 'sdk_or_package', relative, 'Package or SDK metadata');
-  }
-
-  // Service/workload declarations.
-  if (
-    ['dockerfile', 'containerfile'].includes(base) ||
-    /(^|\/)(docker-compose|compose)\.(ya?ml)$/i.test(relative) ||
-    /(^|\/)k8s\//i.test(relative) ||
-    /(^|\/)kubernetes\//i.test(relative) ||
-    /\.(tf|tfvars)$/i.test(relative) ||
-    /^\s*kind\s*:\s*(Deployment|StatefulSet|DaemonSet|Job|CronJob|Service)\b/im.test(text)
-  ) {
-    addFinding(findings, seen, 'service_workload', relative, 'Service, workload, container, or infrastructure declaration');
-  }
-
-  // ECZ-ID public identity references. We only observe; absence is neutral.
   for (const id of uniqueMatches(text, /\b(ECZ-[A-Z0-9][A-Z0-9-]{3,})\b/gi)) identityRefs.add(id.toUpperCase());
   for (const url of uniqueMatches(text, /(https?:\/\/resolver\.ecocitizenz\.(?:org|com)\/[^\s)'"<>]+)/gi)) identityRefs.add(url);
 }
@@ -196,110 +158,50 @@ function inventory(root) {
   const findings = [];
   const seen = new Set();
   const identityRefs = new Set();
-  const signals = {
-    actions_lock: false,
-    pull_request_target: false,
-    self_hosted_runner: false,
-    oidc: false,
-    write_all: false
-  };
-
+  const signals = { actions_lock: false, pull_request_target: false, self_hosted_runner: false, oidc: false, write_all: false };
   for (const file of files) {
     const relative = rel(root, file);
-    if (relative === '.github/workflows/actions.lock' || path.basename(relative) === 'actions.lock') {
-      signals.actions_lock = true;
-    }
+    if (relative === '.github/workflows/actions.lock' || path.basename(relative) === 'actions.lock') signals.actions_lock = true;
     const text = readText(file);
     if (!text) continue;
     classifyFile(relative, text, findings, seen, identityRefs, signals);
   }
-
   findings.sort((a, b) => `${a.category}:${a.file}:${a.detail}`.localeCompare(`${b.category}:${b.file}:${b.detail}`));
   const categories = [...new Set(findings.map((f) => f.category))].sort();
   const highAuthority = new Set(['agent', 'mcp', 'plugin', 'service_workload']);
   const highAuthorityCategories = categories.filter((c) => highAuthority.has(c));
-
   let state = 'NO_MACHINE_SURFACES';
   if (findings.length > 0) state = 'MACHINE_ESTATE_OBSERVED';
   if (highAuthorityCategories.length >= 2 && identityRefs.size === 0) state = 'REVIEW_RECOMMENDED';
-
-  return {
-    state,
-    files_scanned: files.length,
-    machine_count: findings.length,
-    category_count: categories.length,
-    categories,
-    identity_references: [...identityRefs].sort(),
-    signals,
-    findings
-  };
+  return { state, files_scanned: files.length, machine_count: findings.length, category_count: categories.length, categories, identity_references: [...identityRefs].sort(), signals, findings };
 }
 
-function normalizedHash(payload) {
-  return crypto.createHash('sha256').update(JSON.stringify(payload)).digest('hex');
-}
-
+function normalizedHash(payload) { return crypto.createHash('sha256').update(JSON.stringify(payload)).digest('hex'); }
 function nextAction(state, identityCount) {
-  if (state === 'REVIEW_RECOMMENDED') {
-    return 'https://msp.ecocitizenz.com/audit?utm_source=github&utm_medium=action&utm_campaign=msp-machine-estate&utm_content=review-recommended';
-  }
-  if (state === 'MACHINE_ESTATE_OBSERVED' && identityCount === 0) {
-    return 'https://msp.ecocitizenz.com/trust-check?utm_source=github&utm_medium=action&utm_campaign=msp-machine-estate&utm_content=identity-discovery';
-  }
+  if (state === 'REVIEW_RECOMMENDED') return 'https://msp.ecocitizenz.com/audit?utm_source=github&utm_medium=action&utm_campaign=msp-machine-estate&utm_content=review-recommended';
+  if (state === 'MACHINE_ESTATE_OBSERVED' && identityCount === 0) return 'https://msp.ecocitizenz.com/trust-check?utm_source=github&utm_medium=action&utm_campaign=msp-machine-estate&utm_content=identity-discovery';
   return '';
 }
-
 function summaryMarkdown(report, nextUrl) {
-  const categoryRows = report.categories.length
-    ? report.categories.map((c) => `| ${c} | ${report.findings.filter((f) => f.category === c).length} |`).join('\n')
-    : '| none observed | 0 |';
-  const identityText = report.identity_references.length
-    ? `${report.identity_references.length} reference(s) observed`
-    : 'No ECZ-ID / Resolver reference observed — this is a neutral observation, not a safety verdict.';
-  const next = nextUrl
-    ? `\n### One next step\n\n${report.state === 'REVIEW_RECOMMENDED'
-      ? 'Multiple machine/delegated surface categories were observed without an ECZ-ID identity reference. If this customer estate needs a human account of operators, authority and evidence, review the fixed-scope **£395 Client-Estate Machine Trust Baseline**.'
-      : 'Machine surfaces were observed without an ECZ-ID identity reference. Start with the free MSP Machine Trust Check.'}\n\n${nextUrl}\n`
-    : '';
+  const categoryRows = report.categories.length ? report.categories.map((c) => `| ${c} | ${report.findings.filter((f) => f.category === c).length} |`).join('\n') : '| none observed | 0 |';
+  const identityText = report.identity_references.length ? `${report.identity_references.length} reference(s) observed` : 'No ECZ-ID / Resolver reference observed — this is a neutral observation, not a safety verdict.';
+  const next = nextUrl ? `\n### One next step\n\n${report.state === 'REVIEW_RECOMMENDED' ? 'Multiple machine/delegated surface categories were observed without an ECZ-ID identity reference. If this customer estate needs a human account of operators, authority and evidence, review the fixed-scope **£395 Client-Estate Machine Trust Baseline**.' : 'Machine surfaces were observed without an ECZ-ID identity reference. Start with the free MSP Machine Trust Check.'}\n\n${nextUrl}\n` : '';
   return `## ECZ-ID MSP Machine Estate Inventory\n\n**Result:** \`${report.state}\`  \n**Files scanned:** ${report.files_scanned}  \n**Observed surfaces:** ${report.machine_count}  \n**Identity evidence:** ${identityText}\n\n| Category | Observations |\n|---|---:|\n${categoryRows}\n\nThis Action inventories observable repository declarations. It does **not** certify, approve, secure, or declare a machine trustworthy. Missing ECZ-ID identity never means unsafe or non-compliant.${next}`;
 }
 
 function run(options = {}) {
   const workspace = path.resolve(options.workspace || process.env.GITHUB_WORKSPACE || process.cwd());
   const inspectPath = safeResolve(workspace, options.path || input('path', '.'));
-  if (!fs.existsSync(inspectPath) || !fs.statSync(inspectPath).isDirectory()) {
-    throw new Error('Inspection path does not exist or is not a directory.');
-  }
+  if (!fs.existsSync(inspectPath) || !fs.statSync(inspectPath).isDirectory()) throw new Error('Inspection path does not exist or is not a directory.');
   const outputPath = safeOutputPath(workspace, options.output || input('output', 'eczid-msp-machine-estate.json'));
   const clientId = options.clientId != null ? options.clientId : input('client-id', '');
-
   const result = inventory(inspectPath);
-  const hashPayload = {
-    schema_version: '1.0.0',
-    client_id: clientId || null,
-    root: path.relative(workspace, inspectPath).split(path.sep).join('/') || '.',
-    categories: result.categories,
-    identity_references: result.identity_references,
-    signals: result.signals,
-    findings: result.findings
-  };
+  const hashPayload = { schema_version: '1.0.0', client_id: clientId || null, root: path.relative(workspace, inspectPath).split(path.sep).join('/') || '.', categories: result.categories, identity_references: result.identity_references, signals: result.signals, findings: result.findings };
   const baselineHash = normalizedHash(hashPayload);
   const nextUrl = nextAction(result.state, result.identity_references.length);
-  const report = {
-    schema_version: '1.0.0',
-    generated_at: new Date().toISOString(),
-    client_id: clientId || null,
-    root: hashPayload.root,
-    result_state: result.state,
-    baseline_hash: baselineHash,
-    ...result,
-    next_action_url: nextUrl,
-    claims_boundary: 'Repository observations only. No safety, security, compliance, certification, approval, or endorsement verdict is produced.'
-  };
-
+  const report = { schema_version: '1.0.0', generated_at: new Date().toISOString(), client_id: clientId || null, root: hashPayload.root, result_state: result.state, baseline_hash: baselineHash, ...result, next_action_url: nextUrl, claims_boundary: 'Repository observations only. No safety, security, compliance, certification, approval, or endorsement verdict is produced.' };
   fs.mkdirSync(path.dirname(outputPath), { recursive: true });
   fs.writeFileSync(outputPath, `${JSON.stringify(report, null, 2)}\n`, 'utf8');
-
   return { report, outputPath, nextUrl };
 }
 
@@ -307,23 +209,11 @@ function main() {
   const failOn = input('fail-on', 'invalid').toLowerCase();
   try {
     const { report, outputPath, nextUrl } = run();
-    setOutput('result-state', report.result_state);
-    setOutput('machine-count', report.machine_count);
-    setOutput('category-count', report.category_count);
-    setOutput('identity-reference-count', report.identity_references.length);
-    setOutput('baseline-hash', report.baseline_hash);
-    setOutput('report-path', path.relative(process.env.GITHUB_WORKSPACE || process.cwd(), outputPath).split(path.sep).join('/'));
-    setOutput('next-action-url', nextUrl);
+    setOutput('result-state', report.result_state); setOutput('machine-count', report.machine_count); setOutput('category-count', report.category_count); setOutput('identity-reference-count', report.identity_references.length); setOutput('baseline-hash', report.baseline_hash); setOutput('report-path', path.relative(process.env.GITHUB_WORKSPACE || process.cwd(), outputPath).split(path.sep).join('/')); setOutput('next-action-url', nextUrl);
     appendSummary(summaryMarkdown(report, nextUrl));
     console.log(`ECZ-ID MSP Machine Estate Inventory: ${report.result_state}; ${report.machine_count} observations across ${report.category_count} categories.`);
   } catch (error) {
-    setOutput('result-state', 'INVALID_INPUT');
-    setOutput('machine-count', '0');
-    setOutput('category-count', '0');
-    setOutput('identity-reference-count', '0');
-    setOutput('baseline-hash', '');
-    setOutput('report-path', '');
-    setOutput('next-action-url', '');
+    setOutput('result-state', 'INVALID_INPUT'); setOutput('machine-count', '0'); setOutput('category-count', '0'); setOutput('identity-reference-count', '0'); setOutput('baseline-hash', ''); setOutput('report-path', ''); setOutput('next-action-url', '');
     appendSummary(`## ECZ-ID MSP Machine Estate Inventory\n\n**Result:** \`INVALID_INPUT\`\n\n${error.message}\n\nNo safety, security or compliance verdict was produced.`);
     console.error(`ECZ-ID MSP Machine Estate Inventory: ${error.message}`);
     if (failOn !== 'never') process.exitCode = 2;
@@ -331,13 +221,4 @@ function main() {
 }
 
 if (require.main === module) main();
-
-module.exports = {
-  inventory,
-  normalizedHash,
-  nextAction,
-  run,
-  safeResolve,
-  safeOutputPath,
-  summaryMarkdown
-};
+module.exports = { input, inventory, normalizedHash, nextAction, run, safeResolve, safeOutputPath, summaryMarkdown };
