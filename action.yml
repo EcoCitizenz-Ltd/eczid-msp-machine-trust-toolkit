@@ -1,0 +1,41 @@
+name: ECZ-ID MSP Machine Estate Inventory
+description: Discover machine actors and machine-consumed surfaces in a customer repository, create a neutral evidence inventory, and identify the next review step.
+author: EcoCitizenz Ltd
+branding:
+  icon: shield
+  color: green
+inputs:
+  path:
+    description: Repository-relative path to inspect.
+    required: false
+    default: .
+  client-id:
+    description: Optional MSP/customer identifier recorded in the report. This is not sent anywhere.
+    required: false
+    default: ""
+  output:
+    description: Repository-relative JSON report path.
+    required: false
+    default: eczid-msp-machine-estate.json
+  fail-on:
+    description: Exit policy. Supported values are invalid or never. Missing ECZ-ID identity never fails the run.
+    required: false
+    default: invalid
+outputs:
+  result-state:
+    description: NO_MACHINE_SURFACES, MACHINE_ESTATE_OBSERVED, REVIEW_RECOMMENDED, or INVALID_INPUT.
+  machine-count:
+    description: Number of machine or machine-consumed surfaces observed.
+  category-count:
+    description: Number of distinct observed categories.
+  identity-reference-count:
+    description: Number of ECZ-ID or Resolver identity references observed.
+  baseline-hash:
+    description: SHA-256 hash of the normalized inventory payload.
+  report-path:
+    description: Path to the generated JSON report.
+  next-action-url:
+    description: One contextual ECZ-ID next step, or an empty string when no next step is warranted.
+runs:
+  using: node24
+  main: src/index.js
