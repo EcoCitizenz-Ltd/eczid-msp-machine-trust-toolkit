@@ -1,0 +1,45 @@
+name: ECZ-ID MSP Client Trust Baseline
+description: Create a neutral repository-level client baseline for machine estate, GitHub workflow posture and re-checkable evidence.
+author: EcoCitizenz Ltd
+branding:
+  icon: clipboard
+  color: green
+inputs:
+  path:
+    description: Repository-relative path to inspect.
+    required: false
+    default: .
+  client-id:
+    description: Optional MSP/customer identifier recorded locally in the report.
+    required: false
+    default: ""
+  profile:
+    description: Review profile: onboarding, quarterly-review, pre-renewal, or continuous.
+    required: false
+    default: onboarding
+  output:
+    description: Repository-relative JSON baseline report path.
+    required: false
+    default: eczid-msp-client-baseline.json
+  fail-on:
+    description: Exit policy. Supported values are invalid or never.
+    required: false
+    default: invalid
+outputs:
+  result-state:
+    description: NO_MACHINE_SURFACES, BASELINE_OBSERVED, REVIEW_RECOMMENDED, or INVALID_INPUT.
+  baseline-hash:
+    description: SHA-256 hash of the normalized baseline projection.
+  machine-count:
+    description: Number of observed machine or machine-consumed surfaces.
+  mutable-action-ref-count:
+    description: Number of observed Action/reusable-workflow references not pinned to a full 40-character commit SHA.
+  identity-reference-count:
+    description: Number of ECZ-ID or Resolver identity references observed.
+  report-path:
+    description: Path to the generated JSON baseline report.
+  next-action-url:
+    description: One contextual next step, or an empty string when none is warranted.
+runs:
+  using: node24
+  main: index.js
