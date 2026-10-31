@@ -1,0 +1,37 @@
+name: ECZ-ID MSP AI & Agent Estate
+description: Inventory supported AI-agent, MCP, plugin and workflow authority surfaces in a customer repository and identify the next managed-accountability step.
+author: EcoCitizenz Ltd
+branding:
+  icon: cpu
+  color: green
+inputs:
+  path:
+    description: Repository-relative path to inspect.
+    required: false
+    default: .
+  client-id:
+    description: Optional customer identifier recorded locally.
+    required: false
+    default: ""
+  output:
+    description: Repository-relative JSON report path.
+    required: false
+    default: eczid-msp-ai-agent-estate.json
+  fail-on:
+    description: invalid or never. Missing identity never fails the Action.
+    required: false
+    default: invalid
+outputs:
+  result-state:
+    description: NO_AI_AGENT_SURFACES, AI_AGENT_ESTATE_OBSERVED, REVIEW_RECOMMENDED, or INVALID_INPUT.
+  surface-count:
+    description: Number of supported AI/agent/MCP/plugin/workflow observations.
+  identity-reference-count:
+    description: Number of ECZ-ID/Resolver references observed.
+  report-path:
+    description: Generated JSON report path.
+  next-action-url:
+    description: One contextual free or managed-accountability next step.
+runs:
+  using: node24
+  main: index.js

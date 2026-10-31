@@ -1,4 +1,4 @@
-name: MSP Wave A Actions CI
+name: MSP Portfolio Actions CI
 
 on:
   push:
@@ -10,11 +10,11 @@ permissions:
   contents: read
 
 concurrency:
-  group: msp-wave-a-${{ github.workflow }}-${{ github.ref }}
+  group: msp-portfolio-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  subaction-smoke:
+  evidence-actions-smoke:
     strategy:
       fail-fast: false
       matrix:
@@ -26,6 +26,10 @@ jobs:
             output: eczid-msp-standard-drift.json
           - path: actions/evidence-qbr-pack
             output: eczid-msp-evidence-pack.json
+          - path: actions/ai-agent-estate
+            output: eczid-msp-ai-agent-estate.json
+          - path: actions/third-party-reliance
+            output: eczid-msp-third-party-reliance.json
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout
@@ -41,3 +45,29 @@ jobs:
         run: |
           echo "state=${{ steps.action.outputs.result-state }}"
           test -f "${{ matrix.action.output }}"
+
+  tenant-boundary-smoke:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Run Tenant Boundary Guard
+        id: boundary
+        uses: ./actions/tenant-boundary-guard
+        with:
+          client-id: ci-customer
+          environment: test
+          provider: generic
+          expected-target: ci-target
+          actual-target: ci-target
+          fail-on-mismatch: "true"
+      - name: Confirm non-mismatch state
+        shell: bash
+        run: |
+          echo "state=${{ steps.boundary.outputs.result-state }}"
+          test "${{ steps.boundary.outputs.result-state }}" != "BOUNDARY_MISMATCH"
+          test "${{ steps.boundary.outputs.result-state }}" != "DECLARATION_MISMATCH"

@@ -1,0 +1,39 @@
+name: ECZ-ID MSP Third-Party Reliance Gate
+description: Build a neutral register of supported third-party GitHub Actions, MCP endpoints and external machine-service references used by a customer repository.
+author: EcoCitizenz Ltd
+branding:
+  icon: link
+  color: green
+inputs:
+  path:
+    description: Repository-relative path to inspect.
+    required: false
+    default: .
+  client-id:
+    description: Optional customer identifier recorded locally.
+    required: false
+    default: ""
+  output:
+    description: Repository-relative JSON reliance register path.
+    required: false
+    default: eczid-msp-third-party-reliance.json
+  fail-on:
+    description: invalid or never. Observed reliance does not fail the Action.
+    required: false
+    default: invalid
+outputs:
+  result-state:
+    description: NO_EXTERNAL_RELIANCE, RELIANCE_OBSERVED, REVIEW_RECOMMENDED, or INVALID_INPUT.
+  reliance-count:
+    description: Number of unique supported third-party reliance references observed.
+  mutable-action-ref-count:
+    description: Number of non-local Action references not pinned to a full commit SHA.
+  register-hash:
+    description: SHA-256 hash of the normalized reliance register.
+  report-path:
+    description: Path to the generated reliance register.
+  next-action-url:
+    description: Contextual recurring-currentness next step when relevant.
+runs:
+  using: node24
+  main: index.js

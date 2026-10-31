@@ -1,0 +1,43 @@
+name: ECZ-ID MSP Tenant Boundary Guard
+description: Check that a deployment's declared customer/environment boundary matches an MSP-approved target before sensitive steps continue.
+author: EcoCitizenz Ltd
+branding:
+  icon: shield
+  color: green
+inputs:
+  client-id:
+    description: Customer/client identifier expected for this repository or deployment.
+    required: true
+  environment:
+    description: Environment label such as production, staging, or test.
+    required: true
+  provider:
+    description: azure, aws, gcp, or generic.
+    required: false
+    default: generic
+  expected-target:
+    description: Expected tenant/subscription/account/project/target identifier.
+    required: true
+  actual-target:
+    description: Actual target identifier supplied by a preceding authenticated provider step.
+    required: true
+  declaration:
+    description: Optional repository-relative JSON declaration containing client_id, environment, provider, and target.
+    required: false
+    default: .eczid/client-boundary.json
+  fail-on-mismatch:
+    description: Whether a confirmed boundary mismatch should fail the Action.
+    required: false
+    default: "true"
+outputs:
+  result-state:
+    description: BOUNDARY_CONFIRMED, BOUNDARY_MISMATCH, DECLARATION_MISSING, DECLARATION_MISMATCH, or INVALID_INPUT.
+  boundary-hash:
+    description: SHA-256 hash of the normalized supplied boundary tuple.
+  reason-code:
+    description: Deterministic primary reason code.
+  next-action:
+    description: Human-safe next action text. Critical mismatches never use a sales CTA.
+runs:
+  using: node24
+  main: index.js
