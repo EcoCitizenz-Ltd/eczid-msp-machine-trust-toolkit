@@ -90,7 +90,7 @@ test('Evidence & QBR Pack emits observed/not_observed evidence and never a compl
   assert.equal(pack.result_state, 'EVIDENCE_PACK_CREATED');
   assert.equal(pack.profile, 'nis2');
   assert.ok(pack.observations.some((item) => item.key === 'oidc' && item.state === 'observed'));
-  assert.match(markdown, /does not assert that a framework control is satisfied/i);
+  assert.match(markdown, /do not assert that a framework control is satisfied/i);
   assert.match(pack.next_action_url, /plan=core/);
 });
 
