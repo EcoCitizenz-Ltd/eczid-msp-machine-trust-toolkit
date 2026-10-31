@@ -2,7 +2,7 @@ name: MSP Portfolio Actions CI
 
 on:
   push:
-    branches: [main, "feat/**"]
+    branches: [main, "feat/**", "fix/**"]
   pull_request:
   workflow_dispatch:
 
@@ -14,48 +14,53 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  evidence-actions-smoke:
+  portfolio-smoke:
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        action:
-          - path: actions/client-trust-baseline
-            output: eczid-msp-client-baseline.json
-          - path: actions/standard-drift
-            output: eczid-msp-standard-drift.json
-          - path: actions/evidence-qbr-pack
-            output: eczid-msp-evidence-pack.json
-          - path: actions/ai-agent-estate
-            output: eczid-msp-ai-agent-estate.json
-          - path: actions/third-party-reliance
-            output: eczid-msp-third-party-reliance.json
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Run ${{ matrix.action.path }}
-        id: action
-        uses: ./${{ matrix.action.path }}
+
+      - name: Client Trust Baseline
+        id: baseline
+        uses: ./actions/client-trust-baseline
         with:
           client-id: ci-customer
           fail-on: never
-      - name: Confirm primary output
-        shell: bash
-        run: |
-          echo "state=${{ steps.action.outputs.result-state }}"
-          test -f "${{ matrix.action.output }}"
 
-  tenant-boundary-smoke:
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-    runs-on: ${{ matrix.os }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Run Tenant Boundary Guard
+      - name: Standard Drift
+        id: drift
+        uses: ./actions/standard-drift
+        with:
+          client-id: ci-customer
+          fail-on: never
+
+      - name: Evidence and QBR Pack
+        id: evidence
+        uses: ./actions/evidence-qbr-pack
+        with:
+          client-id: ci-customer
+          profile: qbr
+          fail-on: never
+
+      - name: AI and Agent Estate
+        id: ai
+        uses: ./actions/ai-agent-estate
+        with:
+          client-id: ci-customer
+          fail-on: never
+
+      - name: Third-Party Reliance Gate
+        id: reliance
+        uses: ./actions/third-party-reliance
+        with:
+          client-id: ci-customer
+          fail-on: never
+
+      - name: Tenant Boundary Guard
         id: boundary
         uses: ./actions/tenant-boundary-guard
         with:
@@ -65,9 +70,21 @@ jobs:
           expected-target: ci-target
           actual-target: ci-target
           fail-on-mismatch: "true"
-      - name: Confirm non-mismatch state
+
+      - name: Confirm portfolio outputs
         shell: bash
         run: |
-          echo "state=${{ steps.boundary.outputs.result-state }}"
+          echo "baseline=${{ steps.baseline.outputs.result-state }}"
+          echo "drift=${{ steps.drift.outputs.result-state }}"
+          echo "evidence=${{ steps.evidence.outputs.result-state }}"
+          echo "ai=${{ steps.ai.outputs.result-state }}"
+          echo "reliance=${{ steps.reliance.outputs.result-state }}"
+          echo "boundary=${{ steps.boundary.outputs.result-state }}"
+          test -f eczid-msp-client-baseline.json
+          test -f eczid-msp-standard-drift.json
+          test -f eczid-msp-evidence-pack.json
+          test -f eczid-msp-evidence-pack.md
+          test -f eczid-msp-ai-agent-estate.json
+          test -f eczid-msp-third-party-reliance.json
           test "${{ steps.boundary.outputs.result-state }}" != "BOUNDARY_MISMATCH"
           test "${{ steps.boundary.outputs.result-state }}" != "DECLARATION_MISMATCH"
