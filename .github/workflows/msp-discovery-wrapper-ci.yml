@@ -34,10 +34,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Setup Node 24
-        uses: actions/setup-node@395ad3262231945c25e8478c1cc68c7c584d8685 # v6.1.0
-        with:
-          node-version: '24'
+      - name: Show Node runtime
+        run: node --version
 
       - name: Build exact public discovery wrapper packs
         run: node scripts/build-msp-discovery-wrappers.mjs
