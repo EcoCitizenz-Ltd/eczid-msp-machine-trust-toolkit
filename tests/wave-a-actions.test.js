@@ -24,7 +24,7 @@ function write(root, relative, content) {
 function seedRepo(root) {
   write(root, '.github/workflows/deploy.yml', `name: Deploy\non: [push]\npermissions:\n  contents: read\n  id-token: write\njobs:\n  deploy:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1\n`);
   write(root, '.mcp.json', JSON.stringify({ mcpServers: { customer: { url: 'https://example.invalid/mcp' } } }));
-  write(root, 'README.md', 'Operator identity: ECZ-GB-EXAMPLE123\nhttps://resolver.ecocitizenz.org/passport/ECZ-GB-EXAMPLE123\n');
+  write(root, 'README.md', 'Operator identity: ECZ-ZZ-EXAMPL\nhttps://resolver.ecocitizenz.org/p/ECZ-ZZ-EXAMPL\n');
 }
 
 test('Client Trust Baseline records a neutral technical baseline', () => {
@@ -35,7 +35,7 @@ test('Client Trust Baseline records a neutral technical baseline', () => {
   assert.equal(report.client_id, 'client-a');
   assert.equal(report.workflow_posture.oidc_observed, true);
   assert.equal(report.workflow_posture.mutable_action_ref_count, 0);
-  assert.ok(report.identity_references.includes('ECZ-GB-EXAMPLE123'));
+  assert.ok(report.identity_references.includes('ECZ-ZZ-EXAMPL'));
   assert.match(report.claims_boundary, /does not state or certify compliance/i);
 });
 

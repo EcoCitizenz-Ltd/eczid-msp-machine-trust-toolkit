@@ -159,6 +159,6 @@ For a bounded MCP-specific assessment, EcoCitizenz also offers the fixed-scope M
 
 **ECZ-ID public identity evidence - ECZ-GB-RBS1NW**
 
-[View current public identity and evidence](https://resolver.ecocitizenz.org/passport/ECZ-GB-RBS1NW)
+[View current public identity and evidence](https://resolver.ecocitizenz.org/p/ECZ-GB-RBS1NW)
 
 Use ECZ-ID evidence as one input into your own customer policy and service decisions. ECZ-ID does not turn a repository result, machine actor or third party into a universal safety or approval verdict.
