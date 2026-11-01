@@ -58,3 +58,35 @@ jobs:
         shell: bash
         run: |
           find release/discovery-wrappers -maxdepth 2 -type f -print | sort
+
+  windows-publication-preflight:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Show Windows and Node runtime
+        shell: pwsh
+        run: |
+          [System.Environment]::OSVersion.VersionString
+          node --version
+
+      - name: Build exact public discovery wrapper packs on Windows
+        shell: pwsh
+        run: node scripts/build-msp-discovery-wrappers.mjs
+
+      - name: Validate exact wrapper shape and immutable engine delegation on Windows
+        shell: pwsh
+        run: node scripts/validate-msp-discovery-wrappers.mjs
+
+      - name: Prove guarded publisher plan is non-mutating on Windows
+        shell: pwsh
+        run: node scripts/publish-msp-discovery-wrappers.mjs
+
+      - name: Prove all-four publication pack preflight on Windows
+        shell: pwsh
+        run: node scripts/publish-msp-discovery-wrappers.mjs --validate-packs
+
+      - name: Prove discovery metadata configurator plan is non-mutating on Windows
+        shell: pwsh
+        run: node scripts/configure-msp-wrapper-repositories.mjs
