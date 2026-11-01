@@ -87,7 +87,7 @@ test('Third-Party Reliance Gate inventories external Actions and machine endpoin
 test('Third-Party Reliance Gate ignores ECZ-ID Resolver links as external vendor reliance', () => {
   const root = tempRepo();
   write(root, '.mcp.json', JSON.stringify({
-    mcpServers: { demo: { url: 'https://resolver.ecocitizenz.org/passport/ECZ-GB-DEMO123' } }
+    mcpServers: { demo: { url: 'https://resolver.ecocitizenz.org/p/ECZ-ZZ-EXAMPL' } }
   }));
   const { report } = reliance.run({ workspace: root, path: '.', output: 'reliance.json' });
   assert.equal(report.entries.some((entry) => entry.hostname === 'resolver.ecocitizenz.org'), false);
