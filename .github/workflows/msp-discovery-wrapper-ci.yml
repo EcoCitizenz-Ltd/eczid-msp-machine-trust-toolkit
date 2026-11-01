@@ -6,6 +6,7 @@ on:
     paths:
       - "scripts/build-msp-discovery-wrappers.mjs"
       - "scripts/validate-msp-discovery-wrappers.mjs"
+      - "scripts/publish-msp-discovery-wrappers.mjs"
       - ".github/workflows/msp-discovery-wrapper-ci.yml"
       - "action.yml"
       - "actions/**/action.yml"
@@ -13,6 +14,7 @@ on:
     paths:
       - "scripts/build-msp-discovery-wrappers.mjs"
       - "scripts/validate-msp-discovery-wrappers.mjs"
+      - "scripts/publish-msp-discovery-wrappers.mjs"
       - ".github/workflows/msp-discovery-wrapper-ci.yml"
       - "action.yml"
       - "actions/**/action.yml"
@@ -40,8 +42,14 @@ jobs:
       - name: Build exact public discovery wrapper packs
         run: node scripts/build-msp-discovery-wrappers.mjs
 
-      - name: Validate exact wrapper shape, contracts and immutable engine delegation
+      - name: Validate exact wrapper shape, trust docs, contracts and immutable engine delegation
         run: node scripts/validate-msp-discovery-wrappers.mjs
+
+      - name: Prove guarded publisher is non-mutating by default
+        run: node scripts/publish-msp-discovery-wrappers.mjs
+
+      - name: Prove all-four publication pack preflight without GitHub mutation
+        run: node scripts/publish-msp-discovery-wrappers.mjs --validate-packs
 
       - name: Show certified wrapper tree
         shell: bash
