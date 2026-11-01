@@ -1,0 +1,60 @@
+name: MSP Discovery Wrapper Release CI
+
+on:
+  push:
+    branches: [main, "feat/**", "fix/**"]
+    paths:
+      - "scripts/build-msp-discovery-wrappers.mjs"
+      - "scripts/validate-msp-discovery-wrappers.mjs"
+      - "scripts/publish-msp-discovery-wrappers.mjs"
+      - "scripts/configure-msp-wrapper-repositories.mjs"
+      - ".github/workflows/msp-discovery-wrapper-ci.yml"
+      - "action.yml"
+      - "actions/**/action.yml"
+  pull_request:
+    paths:
+      - "scripts/build-msp-discovery-wrappers.mjs"
+      - "scripts/validate-msp-discovery-wrappers.mjs"
+      - "scripts/publish-msp-discovery-wrappers.mjs"
+      - "scripts/configure-msp-wrapper-repositories.mjs"
+      - ".github/workflows/msp-discovery-wrapper-ci.yml"
+      - "action.yml"
+      - "actions/**/action.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: msp-discovery-wrappers-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  certify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Show Node runtime
+        run: node --version
+
+      - name: Build exact public discovery wrapper packs
+        run: node scripts/build-msp-discovery-wrappers.mjs
+
+      - name: Validate exact wrapper shape, trust docs, contracts and immutable engine delegation
+        run: node scripts/validate-msp-discovery-wrappers.mjs
+
+      - name: Prove guarded publisher is non-mutating by default
+        run: node scripts/publish-msp-discovery-wrappers.mjs
+
+      - name: Prove all-four publication pack preflight without GitHub mutation
+        run: node scripts/publish-msp-discovery-wrappers.mjs --validate-packs
+
+      - name: Prove discovery metadata configurator is non-mutating by default
+        run: node scripts/configure-msp-wrapper-repositories.mjs
+
+      - name: Show certified wrapper tree
+        shell: bash
+        run: |
+          find release/discovery-wrappers -maxdepth 2 -type f -print | sort
