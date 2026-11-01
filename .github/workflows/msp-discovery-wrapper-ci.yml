@@ -4,6 +4,7 @@ on:
   push:
     branches: [main, "feat/**", "fix/**"]
     paths:
+      - ".gitignore"
       - "scripts/build-msp-discovery-wrappers.mjs"
       - "scripts/validate-msp-discovery-wrappers.mjs"
       - "scripts/publish-msp-discovery-wrappers.mjs"
@@ -13,6 +14,7 @@ on:
       - "actions/**/action.yml"
   pull_request:
     paths:
+      - ".gitignore"
       - "scripts/build-msp-discovery-wrappers.mjs"
       - "scripts/validate-msp-discovery-wrappers.mjs"
       - "scripts/publish-msp-discovery-wrappers.mjs"
@@ -51,6 +53,12 @@ jobs:
       - name: Prove all-four publication pack preflight without GitHub mutation
         run: node scripts/publish-msp-discovery-wrappers.mjs --validate-packs
 
+      - name: Prove validation leaves the source checkout clean
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -z "$(git status --short)"
+
       - name: Prove discovery metadata configurator is non-mutating by default
         run: node scripts/configure-msp-wrapper-repositories.mjs
 
@@ -86,6 +94,15 @@ jobs:
       - name: Prove all-four publication pack preflight on Windows
         shell: pwsh
         run: node scripts/publish-msp-discovery-wrappers.mjs --validate-packs
+
+      - name: Prove validation leaves the source checkout clean on Windows
+        shell: pwsh
+        run: |
+          $dirty = git status --short
+          if ($dirty) {
+            Write-Host $dirty
+            throw "MSP wrapper validation dirtied the source checkout."
+          }
 
       - name: Prove discovery metadata configurator plan is non-mutating on Windows
         shell: pwsh
