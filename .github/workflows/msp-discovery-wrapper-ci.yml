@@ -7,6 +7,7 @@ on:
       - "scripts/build-msp-discovery-wrappers.mjs"
       - "scripts/validate-msp-discovery-wrappers.mjs"
       - "scripts/publish-msp-discovery-wrappers.mjs"
+      - "scripts/configure-msp-wrapper-repositories.mjs"
       - ".github/workflows/msp-discovery-wrapper-ci.yml"
       - "action.yml"
       - "actions/**/action.yml"
@@ -15,6 +16,7 @@ on:
       - "scripts/build-msp-discovery-wrappers.mjs"
       - "scripts/validate-msp-discovery-wrappers.mjs"
       - "scripts/publish-msp-discovery-wrappers.mjs"
+      - "scripts/configure-msp-wrapper-repositories.mjs"
       - ".github/workflows/msp-discovery-wrapper-ci.yml"
       - "action.yml"
       - "actions/**/action.yml"
@@ -48,6 +50,9 @@ jobs:
 
       - name: Prove all-four publication pack preflight without GitHub mutation
         run: node scripts/publish-msp-discovery-wrappers.mjs --validate-packs
+
+      - name: Prove discovery metadata configurator is non-mutating by default
+        run: node scripts/configure-msp-wrapper-repositories.mjs
 
       - name: Show certified wrapper tree
         shell: bash
