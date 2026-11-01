@@ -42,11 +42,11 @@ test('discovers GitHub workflow, MCP, agent, API and workload surfaces without t
 test('records ECZ-ID references as evidence without changing them', () => {
   const root = tempRepo();
   write(root, '.mcp.json', '{"mcpServers":{"demo":{"url":"https://example.invalid/mcp"}}}');
-  write(root, 'README.md', 'Identity: ECZ-GB-EXAMPLE123\nhttps://resolver.ecocitizenz.org/passport/ECZ-GB-EXAMPLE123\n');
+  write(root, 'README.md', 'Identity: ECZ-ZZ-EXAMPL\nhttps://resolver.ecocitizenz.org/p/ECZ-ZZ-EXAMPL\n');
 
   const result = inventory(root);
   assert.equal(result.state, 'MACHINE_ESTATE_OBSERVED');
-  assert.ok(result.identity_references.some((value) => value === 'ECZ-GB-EXAMPLE123'));
+  assert.ok(result.identity_references.some((value) => value === 'ECZ-ZZ-EXAMPL'));
   assert.ok(result.identity_references.some((value) => value.includes('resolver.ecocitizenz.org')));
 });
 
