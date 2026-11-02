@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { spawnSync } from "node:child_process";
 import {
-  cpFileSync,
+  copyFileSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
@@ -164,7 +164,7 @@ function prepareWrapper(wrapper, pack, sourceSha, releaseTag, stagingRoot) {
   run("git", ["config", "user.email", "release@ecocitizenz.com"], { cwd: dir });
   if (capture("git", ["status", "--porcelain"], { cwd: dir })) fail(`${fullName}: checkout is unexpectedly dirty.`);
 
-  for (const file of MANAGED_FILES) cpFileSync(join(pack.dir, file), join(dir, file));
+  for (const file of MANAGED_FILES) copyFileSync(join(pack.dir, file), join(dir, file));
   const changed = changedPaths(dir);
   if (!changed.length) fail(`${fullName}: generated wrapper pack is byte-identical to main; refusing an empty version release.`);
   const unexpected = changed.filter((path) => !MANAGED_SET.has(path));
