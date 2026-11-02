@@ -9,6 +9,7 @@ on:
       - "scripts/validate-msp-discovery-wrappers.mjs"
       - "scripts/publish-msp-discovery-wrappers.mjs"
       - "scripts/release-msp-discovery-wrappers-next.mjs"
+      - "scripts/generate-msp-wrapper-sboms.mjs"
       - "scripts/configure-msp-wrapper-repositories.mjs"
       - ".github/workflows/msp-discovery-wrapper-ci.yml"
       - "action.yml"
@@ -20,6 +21,7 @@ on:
       - "scripts/validate-msp-discovery-wrappers.mjs"
       - "scripts/publish-msp-discovery-wrappers.mjs"
       - "scripts/release-msp-discovery-wrappers-next.mjs"
+      - "scripts/generate-msp-wrapper-sboms.mjs"
       - "scripts/configure-msp-wrapper-repositories.mjs"
       - ".github/workflows/msp-discovery-wrapper-ci.yml"
       - "action.yml"
@@ -46,14 +48,55 @@ jobs:
       - name: Build exact public discovery wrapper packs
         run: node scripts/build-msp-discovery-wrappers.mjs
 
-      - name: Validate exact wrapper shape, trust docs, contracts and immutable engine delegation
+      - name: Validate historical wrapper shape, trust docs, contracts and immutable engine delegation
         run: node scripts/validate-msp-discovery-wrappers.mjs
 
-      - name: Prove guarded publisher is non-mutating by default
+      - name: Prove guarded initial publisher is non-mutating by default
         run: node scripts/publish-msp-discovery-wrappers.mjs
 
-      - name: Prove all-four publication pack preflight without GitHub mutation
+      - name: Prove initial publication pack preflight without GitHub mutation
         run: node scripts/publish-msp-discovery-wrappers.mjs --validate-packs
+
+      - name: Generate future-release dependency SBOMs after historical-pack validation
+        run: node scripts/generate-msp-wrapper-sboms.mjs --version v1.0.1
+
+      - name: Certify wrapper SBOMs are exact, private-path-free and deterministic
+        shell: bash
+        run: |
+          set -euo pipefail
+          wrappers=(
+            eczid-msp-ai-agent-estate
+            eczid-msp-machine-estate-inventory
+            eczid-msp-evidence-qbr-pack
+            eczid-msp-standard-drift
+          )
+          declare -A before
+          for slug in "${wrappers[@]}"; do
+            root="release/discovery-wrappers/$slug"
+            test -s "$root/sbom.cdx.json"
+            test -s "$root/ENGINE_SHA"
+            node - "$root/sbom.cdx.json" "$root/ENGINE_SHA" "$slug" <<'NODE'
+          const fs = require('fs');
+          const [sbomPath, enginePath, slug] = process.argv.slice(2);
+          const sbom = JSON.parse(fs.readFileSync(sbomPath, 'utf8'));
+          const engine = fs.readFileSync(enginePath, 'utf8').trim();
+          if (sbom.bomFormat !== 'CycloneDX' || sbom.specVersion !== '1.6') process.exit(1);
+          if (sbom.metadata?.component?.name !== slug || sbom.metadata?.component?.version !== 'v1.0.1') process.exit(1);
+          if (sbom.serialNumber !== undefined || sbom.metadata?.timestamp !== undefined) process.exit(1);
+          const dep = sbom.components?.[0];
+          if (dep?.name !== 'EcoCitizenz-Ltd/eczid-msp-machine-trust-toolkit' || dep?.version !== engine) process.exit(1);
+          const text = fs.readFileSync(sbomPath, 'utf8');
+          for (const token of ['node_modules/.pnpm','packages/core/src','C:\\','/home/']) if (text.includes(token)) process.exit(1);
+          NODE
+            before[$slug]="$(sha256sum "$root/sbom.cdx.json" | awk '{print $1}')"
+          done
+
+          node scripts/generate-msp-wrapper-sboms.mjs --version v1.0.1
+          for slug in "${wrappers[@]}"; do
+            root="release/discovery-wrappers/$slug"
+            after="$(sha256sum "$root/sbom.cdx.json" | awk '{print $1}')"
+            test "$after" = "${before[$slug]}"
+          done
 
       - name: Prove next-release plan is non-mutating and keeps v1 behind immutable exact releases
         run: node scripts/release-msp-discovery-wrappers-next.mjs --version v1.0.1
@@ -88,17 +131,50 @@ jobs:
         shell: pwsh
         run: node scripts/build-msp-discovery-wrappers.mjs
 
-      - name: Validate exact wrapper shape and immutable engine delegation on Windows
+      - name: Validate historical wrapper shape and immutable engine delegation on Windows
         shell: pwsh
         run: node scripts/validate-msp-discovery-wrappers.mjs
 
-      - name: Prove guarded publisher plan is non-mutating on Windows
+      - name: Prove guarded initial publisher plan is non-mutating on Windows
         shell: pwsh
         run: node scripts/publish-msp-discovery-wrappers.mjs
 
-      - name: Prove all-four publication pack preflight on Windows
+      - name: Prove initial publication pack preflight on Windows
         shell: pwsh
         run: node scripts/publish-msp-discovery-wrappers.mjs --validate-packs
+
+      - name: Generate future-release dependency SBOMs on Windows
+        shell: pwsh
+        run: node scripts/generate-msp-wrapper-sboms.mjs --version v1.0.1
+
+      - name: Certify wrapper SBOMs on Windows
+        shell: pwsh
+        run: |
+          $wrappers = @(
+            'eczid-msp-ai-agent-estate',
+            'eczid-msp-machine-estate-inventory',
+            'eczid-msp-evidence-qbr-pack',
+            'eczid-msp-standard-drift'
+          )
+          $before = @{}
+          foreach ($slug in $wrappers) {
+            $root = Join-Path 'release/discovery-wrappers' $slug
+            $sbomPath = Join-Path $root 'sbom.cdx.json'
+            $enginePath = Join-Path $root 'ENGINE_SHA'
+            if (-not (Test-Path $sbomPath) -or -not (Test-Path $enginePath)) { throw "$slug SBOM/ENGINE_SHA missing" }
+            $sbom = Get-Content $sbomPath -Raw | ConvertFrom-Json
+            $engine = (Get-Content $enginePath -Raw).Trim()
+            if ($sbom.bomFormat -ne 'CycloneDX' -or $sbom.specVersion -ne '1.6') { throw "$slug invalid CycloneDX envelope" }
+            if ($sbom.metadata.component.name -ne $slug -or $sbom.metadata.component.version -ne 'v1.0.1') { throw "$slug root metadata mismatch" }
+            if ($null -ne $sbom.serialNumber -or $null -ne $sbom.metadata.timestamp) { throw "$slug nondeterministic SBOM metadata" }
+            if ($sbom.components[0].name -ne 'EcoCitizenz-Ltd/eczid-msp-machine-trust-toolkit' -or $sbom.components[0].version -ne $engine) { throw "$slug engine dependency mismatch" }
+            $before[$slug] = (Get-FileHash $sbomPath -Algorithm SHA256).Hash
+          }
+          node scripts/generate-msp-wrapper-sboms.mjs --version v1.0.1
+          foreach ($slug in $wrappers) {
+            $sbomPath = Join-Path (Join-Path 'release/discovery-wrappers' $slug) 'sbom.cdx.json'
+            if ((Get-FileHash $sbomPath -Algorithm SHA256).Hash -ne $before[$slug]) { throw "$slug SBOM regeneration changed bytes" }
+          }
 
       - name: Prove next-release plan is non-mutating on Windows
         shell: pwsh
