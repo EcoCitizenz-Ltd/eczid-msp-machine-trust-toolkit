@@ -3,7 +3,6 @@ import { spawnSync } from "node:child_process";
 import {
   copyFileSync,
   existsSync,
-  mkdirSync,
   mkdtempSync,
   readFileSync,
   readdirSync,
@@ -11,7 +10,7 @@ import {
   statSync
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join, relative, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -35,7 +34,8 @@ const MANAGED_FILES = Object.freeze([
   "README.md",
   "SECURITY.md",
   "SUPPORT.md",
-  "action.yml"
+  "action.yml",
+  "sbom.cdx.json"
 ]);
 const MANAGED_SET = new Set(MANAGED_FILES);
 
@@ -83,9 +83,12 @@ function files(dir) {
   return readdirSync(dir).sort().filter((name) => statSync(join(dir, name)).isFile());
 }
 
-function buildAndValidatePacks() {
+function buildAndValidatePacks(releaseTag) {
   run(process.execPath, [join(root, "scripts", "build-msp-discovery-wrappers.mjs")]);
+  // Preserve and prove the historical seven-file wrapper contract before adding the future-release SBOM layer.
   run(process.execPath, [join(root, "scripts", "validate-msp-discovery-wrappers.mjs")]);
+  run(process.execPath, [join(root, "scripts", "generate-msp-wrapper-sboms.mjs"), "--version", releaseTag]);
+
   const packs = new Map();
   let commonEngineSha = null;
   for (const wrapper of WRAPPERS) {
@@ -93,7 +96,7 @@ function buildAndValidatePacks() {
     if (!existsSync(dir)) fail(`${wrapper.slug}: generated pack is missing.`);
     const actual = files(dir);
     if (JSON.stringify(actual) !== JSON.stringify(MANAGED_FILES)) {
-      fail(`${wrapper.slug}: generated pack shape mismatch; got ${actual.join(", ")}.`);
+      fail(`${wrapper.slug}: future-release pack shape mismatch; got ${actual.join(", ")}.`);
     }
     const engineSha = readFileSync(join(dir, "ENGINE_SHA"), "utf8").trim();
     if (!/^[0-9a-f]{40}$/i.test(engineSha)) fail(`${wrapper.slug}: ENGINE_SHA is not an exact commit SHA.`);
@@ -102,6 +105,15 @@ function buildAndValidatePacks() {
     const actionYaml = readFileSync(join(dir, "action.yml"), "utf8");
     if (!actionYaml.includes(`eczid-msp-machine-trust-toolkit@${engineSha}`)) {
       fail(`${wrapper.slug}: action.yml does not delegate to the exact ENGINE_SHA.`);
+    }
+    const sbomText = readFileSync(join(dir, "sbom.cdx.json"), "utf8");
+    const sbom = JSON.parse(sbomText);
+    if (sbom?.bomFormat !== "CycloneDX" || sbom?.specVersion !== "1.6") fail(`${wrapper.slug}: wrapper SBOM is not CycloneDX 1.6.`);
+    if (sbom?.metadata?.component?.name !== wrapper.slug || sbom?.metadata?.component?.version !== releaseTag) {
+      fail(`${wrapper.slug}: wrapper SBOM root metadata does not match the exact release.`);
+    }
+    if (sbom?.components?.[0]?.name !== `${OWNER}/eczid-msp-machine-trust-toolkit` || sbom?.components?.[0]?.version !== engineSha) {
+      fail(`${wrapper.slug}: wrapper SBOM does not describe the exact shared-engine dependency.`);
     }
     packs.set(wrapper.slug, { dir, engineSha });
   }
@@ -209,7 +221,7 @@ function publishExactRelease(item, sourceSha, releaseTag) {
     "--repo", item.fullName,
     "--verify-tag",
     "--title", `${item.wrapper.name} ${releaseTag}`,
-    "--notes", `Certified ECZ-ID MSP discovery wrapper release. Wrapper source ${sourceSha}; exact shared engine ${item.engineSha}. This exact version must verify as immutable before ${MAJOR_TAG} advances.`
+    "--notes", `Certified ECZ-ID MSP discovery wrapper release. Wrapper source ${sourceSha}; exact shared engine ${item.engineSha}; CycloneDX wrapper SBOM records that exact runtime delegation. This exact version must verify as immutable before ${MAJOR_TAG} advances.`
   ]);
   verifyImmutableRelease(item, releaseTag);
 }
@@ -223,6 +235,9 @@ function moveMajorTag(item, releaseTag) {
   if (remoteActionBlob !== localActionBlob) fail(`${item.fullName}: served ${MAJOR_TAG} action.yml does not match the verified wrapper commit.`);
   const engine = Buffer.from(capture("gh", ["api", `repos/${item.fullName}/contents/ENGINE_SHA?ref=${MAJOR_TAG}`, "--jq", ".content"]), "base64").toString("utf8").trim();
   if (engine !== item.engineSha) fail(`${item.fullName}: served ${MAJOR_TAG} ENGINE_SHA mismatch.`);
+  const localSbomBlob = capture("git", ["hash-object", "sbom.cdx.json"], { cwd: item.dir });
+  const remoteSbomBlob = capture("gh", ["api", `repos/${item.fullName}/contents/sbom.cdx.json?ref=${MAJOR_TAG}`, "--jq", ".sha"]);
+  if (remoteSbomBlob !== localSbomBlob) fail(`${item.fullName}: served ${MAJOR_TAG} SBOM read-back mismatch.`);
 }
 
 function printPlan(releaseTag) {
@@ -236,6 +251,7 @@ function printPlan(releaseTag) {
       initial_publisher_unchanged: true,
       exact_version_release_first: true,
       exact_shared_engine_pin_required: true,
+      wrapper_dependency_sbom_required: true,
       requires_owner_confirmation_release_immutability_enabled: true,
       requires_rest_immutable_true: true,
       requires_gh_release_verify: true,
@@ -267,7 +283,7 @@ try {
   process.chdir(root);
   assertAdminSession();
   const sourceSha = assertCleanSourceCheckout();
-  const { packs, engineSha } = buildAndValidatePacks();
+  const { packs, engineSha } = buildAndValidatePacks(releaseTag);
   preflightDestinations(releaseTag);
 
   stagingRoot = mkdtempSync(join(tmpdir(), "eczid-msp-next-release-"));
