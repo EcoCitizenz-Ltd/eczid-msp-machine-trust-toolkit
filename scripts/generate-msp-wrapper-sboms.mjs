@@ -32,6 +32,12 @@ function validateVersion(value) {
   return value;
 }
 
+function hasExactEngineDelegation(actionText, engineSha) {
+  const escapedRepo = engineRepo.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const pattern = new RegExp(`uses:\\s*["']?${escapedRepo}(?:/[^\\s@"']+)?@${engineSha}["']?`, "m");
+  return pattern.test(actionText);
+}
+
 const version = validateVersion(argValue("--version"));
 for (const slug of wrappers) {
   const dir = join(packRoot, slug);
@@ -39,8 +45,8 @@ for (const slug of wrappers) {
   if (!/^[0-9a-f]{40}$/i.test(engineSha)) throw new Error(`${slug}: ENGINE_SHA is not an exact commit SHA.`);
 
   const actionText = readFileSync(join(dir, "action.yml"), "utf8");
-  if (!actionText.includes(`${engineRepo}@${engineSha}`)) {
-    throw new Error(`${slug}: action.yml does not delegate to the exact ENGINE_SHA.`);
+  if (!hasExactEngineDelegation(actionText, engineSha)) {
+    throw new Error(`${slug}: action.yml does not delegate to the exact ENGINE_SHA at the toolkit root or a toolkit subpath.`);
   }
 
   const rootRef = `urn:eczid:github-action:${slug}:${encodeURIComponent(version)}`;
