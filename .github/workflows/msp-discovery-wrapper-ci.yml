@@ -8,6 +8,7 @@ on:
       - "scripts/build-msp-discovery-wrappers.mjs"
       - "scripts/validate-msp-discovery-wrappers.mjs"
       - "scripts/publish-msp-discovery-wrappers.mjs"
+      - "scripts/release-msp-discovery-wrappers-next.mjs"
       - "scripts/configure-msp-wrapper-repositories.mjs"
       - ".github/workflows/msp-discovery-wrapper-ci.yml"
       - "action.yml"
@@ -18,6 +19,7 @@ on:
       - "scripts/build-msp-discovery-wrappers.mjs"
       - "scripts/validate-msp-discovery-wrappers.mjs"
       - "scripts/publish-msp-discovery-wrappers.mjs"
+      - "scripts/release-msp-discovery-wrappers-next.mjs"
       - "scripts/configure-msp-wrapper-repositories.mjs"
       - ".github/workflows/msp-discovery-wrapper-ci.yml"
       - "action.yml"
@@ -52,6 +54,9 @@ jobs:
 
       - name: Prove all-four publication pack preflight without GitHub mutation
         run: node scripts/publish-msp-discovery-wrappers.mjs --validate-packs
+
+      - name: Prove next-release plan is non-mutating and keeps v1 behind immutable exact releases
+        run: node scripts/release-msp-discovery-wrappers-next.mjs --version v1.0.1
 
       - name: Prove validation leaves the source checkout clean
         shell: bash
@@ -94,6 +99,10 @@ jobs:
       - name: Prove all-four publication pack preflight on Windows
         shell: pwsh
         run: node scripts/publish-msp-discovery-wrappers.mjs --validate-packs
+
+      - name: Prove next-release plan is non-mutating on Windows
+        shell: pwsh
+        run: node scripts/release-msp-discovery-wrappers-next.mjs --version v1.0.1
 
       - name: Prove validation leaves the source checkout clean on Windows
         shell: pwsh
