@@ -12,13 +12,13 @@ This repository gives you a practical starting point for discovering those surfa
 
 ## GitHub Action: MSP Machine Estate Inventory
 
-This repository now contains the pre-release **ECZ-ID MSP Machine Estate Inventory** GitHub Action. It locally inventories supported machine and machine-consumed surfaces declared in a repository, including GitHub workflows and Action dependencies, agent or agentic-workflow definitions, MCP configuration, Plugin/Action definitions, OpenAPI surfaces, package/SDK metadata and service/workload declarations.
+This repository contains the shared engine implementation behind the public **ECZ-ID MSP Machine Estate Inventory** GitHub Action. The dedicated Marketplace discovery wrapper is published at [EcoCitizenz-Ltd/eczid-msp-machine-estate-inventory](https://github.com/EcoCitizenz-Ltd/eczid-msp-machine-estate-inventory) and is available through its stable `@v1` compatibility reference. The engine locally inventories supported machine and machine-consumed surfaces declared in a repository, including GitHub workflows and Action dependencies, agent or agentic-workflow definitions, MCP configuration, Plugin/Action definitions, OpenAPI surfaces, package/SDK metadata and service/workload declarations.
 
 The Action produces a JSON inventory, a deterministic baseline hash, machine-readable outputs and a GitHub Job Summary. It can also observe ECZ-ID or Resolver references when they are already declared.
 
 Its result states are deliberately narrow: `NO_MACHINE_SURFACES`, `MACHINE_ESTATE_OBSERVED`, `REVIEW_RECOMMENDED` and `INVALID_INPUT`. Missing ECZ-ID identity is a neutral observation and never means unsafe, non-compliant, untrusted or failed.
 
-The implementation is local-first: it uploads no repository source and contains no hidden telemetry. A Marketplace release has **not** yet been published; release and listing follow only after the implementation and public usage contract complete their release gates.
+The implementation is local-first: it uploads no repository source and contains no hidden telemetry. The public discovery wrapper delegates to a certified immutable commit of this shared engine; wrapper releases advance only after the shared engine's release and cross-platform gates are green.
 
 ## Start with the client-estate question, not the product
 
