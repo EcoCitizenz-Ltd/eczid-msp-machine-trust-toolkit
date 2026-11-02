@@ -26,7 +26,7 @@ The implementation is local-first: it uploads no repository source and contains 
 
 Seventeen questions. No signup. The answers are evaluated in your browser and are not transmitted.
 
-[**Run the free Machine Trust Check ->**](https://msp.ecocitizenz.com/trust-check?utm_source=github&utm_medium=repository&utm_campaign=msp-machine-trust&utm_content=hero-check)
+[**Run the free Machine Trust Check ->**](https://msp.ecocitizenz.com/trust-check?utm_source=github&utm_medium=repository&utm_campaign=msp-machine-trust&utm_content=hero-check&ecz_source=github&ecz_surface=eczid-msp-machine-trust-toolkit&intent=msp-machine-trust-check)
 
 ### 2. Create the starting record
 
@@ -34,7 +34,7 @@ If the check shows that machine actors, customer authority, delegated access or 
 
 The Baseline maps representative machine/action paths, customer authority, operating surfaces and evidence, then identifies which client estates should enter recurring Machine Trust.
 
-[**Review the £395 Client-Estate Machine Trust Baseline ->**](https://msp.ecocitizenz.com/audit?utm_source=github&utm_medium=repository&utm_campaign=msp-machine-trust&utm_content=hero-baseline)
+[**Review the £395 Client-Estate Machine Trust Baseline ->**](https://msp.ecocitizenz.com/audit?utm_source=github&utm_medium=repository&utm_campaign=msp-machine-trust&utm_content=hero-baseline&ecz_source=github&ecz_surface=eczid-msp-machine-trust-toolkit)
 
 ### 3. Keep the right client estates current
 
@@ -42,7 +42,7 @@ The Baseline creates the starting record. Machine Trust Core or Machine Trust As
 
 Your MSP keeps the customer relationship, retail price and service wrapper.
 
-[Explore Managed AI Accountability](https://msp.ecocitizenz.com/managed-ai?utm_source=github&utm_medium=repository&utm_campaign=msp-machine-trust&utm_content=managed-ai) · [Explore the MSP Partner Programme](https://msp.ecocitizenz.com/partners?utm_source=github&utm_medium=repository&utm_campaign=msp-machine-trust&utm_content=partner-programme)
+[Explore Managed AI Accountability](https://msp.ecocitizenz.com/managed-ai?utm_source=github&utm_medium=repository&utm_campaign=msp-machine-trust&utm_content=managed-ai&ecz_source=github&ecz_surface=eczid-msp-machine-trust-toolkit) · [Explore the MSP Partner Programme](https://msp.ecocitizenz.com/partners?utm_source=github&utm_medium=repository&utm_campaign=msp-machine-trust&utm_content=partner-programme&ecz_source=github&ecz_surface=eczid-msp-machine-trust-toolkit)
 
 ---
 
@@ -105,7 +105,7 @@ Local-first MCP inspection and change visibility.
 
 [Install MCP Trust Free](https://marketplace.visualstudio.com/items?itemName=ecocitizenz.eczid-mcp-trust)
 
-[Explore MCP Trust](https://developers.ecocitizenz.com/mcp-trust?utm_source=github&utm_medium=repository&utm_campaign=msp-machine-trust&utm_content=mcp)
+[Explore MCP Trust](https://developers.ecocitizenz.com/mcp-trust?utm_source=github&utm_medium=repository&utm_campaign=msp-machine-trust&utm_content=mcp&ecz_source=github&ecz_surface=eczid-msp-machine-trust-toolkit)
 
 ### Agent Trust
 
@@ -113,7 +113,7 @@ Local agent authority and capability visibility.
 
 [Install Agent Trust Free](https://marketplace.visualstudio.com/items?itemName=ecocitizenz.eczid-ai-agents)
 
-[Explore Agent Trust](https://developers.ecocitizenz.com/agent-trust?utm_source=github&utm_medium=repository&utm_campaign=msp-machine-trust&utm_content=agent)
+[Explore Agent Trust](https://developers.ecocitizenz.com/agent-trust?utm_source=github&utm_medium=repository&utm_campaign=msp-machine-trust&utm_content=agent&ecz_source=github&ecz_surface=eczid-msp-machine-trust-toolkit)
 
 ### GitHub checks
 
@@ -125,7 +125,7 @@ Use ECZ-ID MCP & Agent Check for supported committed MCP and agent configuration
 
 Use the free MCP & AI Agent Trust Preflight as a practical review aid before deeper assessment.
 
-[Download the free Trust Preflight](https://developers.ecocitizenz.com/downloads/eczid-mcp-agent-trust-preflight.pdf?utm_source=github&utm_medium=repository&utm_campaign=msp-machine-trust&utm_content=preflight)
+[Download the free Trust Preflight](https://developers.ecocitizenz.com/downloads/eczid-mcp-agent-trust-preflight.pdf?utm_source=github&utm_medium=repository&utm_campaign=msp-machine-trust&utm_content=preflight&ecz_source=github&ecz_surface=eczid-msp-machine-trust-toolkit)
 
 ---
 
@@ -151,7 +151,7 @@ These tools can support a managed review workflow without turning a GitHub resul
 
 For a bounded MCP-specific assessment, EcoCitizenz also offers the fixed-scope MCP Readiness Audit.
 
-[Explore MCP Readiness Services](https://mcp.ecocitizenz.com?utm_source=github&utm_medium=repository&utm_campaign=msp-machine-trust&utm_content=mcp-audit)
+[Explore MCP Readiness Services](https://mcp.ecocitizenz.com?utm_source=github&utm_medium=repository&utm_campaign=msp-machine-trust&utm_content=mcp-audit&ecz_source=github&ecz_surface=eczid-msp-machine-trust-toolkit)
 
 ---
 
