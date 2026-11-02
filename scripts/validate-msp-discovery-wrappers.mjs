@@ -52,6 +52,7 @@ for(const [slug,spec] of Object.entries(expected)){
     '### First-run path',
     '## Minimal Action step',
     `utm_source=github&utm_medium=action-readme&utm_campaign=msp-machine-trust&utm_content=${slug}`,
+    `ecz_source=github&ecz_surface=${slug}&intent=msp-machine-trust-check`,
     'No repository source upload to ECZ-ID.',
     'No hidden telemetry.',
     'Missing ECZ-ID identity is neutral',
@@ -61,7 +62,7 @@ for(const [slug,spec] of Object.entries(expected)){
   ]) mustContain(readme,phrase,`${slug} README`);
   mustContain(readme,'@v1',`${slug} README version guidance`);mustContain(readme,'full release commit SHA',`${slug} README immutable guidance`);
   if(slug==='eczid-msp-standard-drift')mustContain(readme,'mode: propose',`${slug} first-run baseline proposal`);
-  if(/repo=|customer=|ecz_id=/i.test(readme))fail(`${slug}: unbounded attribution identifier found in README.`);
+  if(/repo=|customer=|tenant=|ecz_id=/i.test(readme))fail(`${slug}: unbounded attribution identifier found in README.`);
   mustContain(privacy,'not uploaded to ECZ-ID',`${slug} privacy`);mustContain(privacy,'no hidden telemetry',`${slug} privacy`);mustContain(security,'full immutable commit SHA',`${slug} security`);mustContain(security,'Local MSP/customer policy decides',`${slug} security`);mustContain(support,'customer-private evidence',`${slug} support`);mustContain(license,'All rights reserved',`${slug} license`);
   const publicText=[action,readme,privacy,security,support,license].join('\n'); if(/£|\$\d|monthly|yearly|per month|per year/i.test(publicText))fail(`${slug}: mutable price/cadence copy escaped into public wrapper pack.`); for(const forbidden of ['BEGIN PRIVATE KEY','node_modules/','ECZID_DEV_SEAM'])if(publicText.includes(forbidden))fail(`${slug}: forbidden material detected: ${forbidden}`);
 }
