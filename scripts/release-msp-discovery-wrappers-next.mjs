@@ -16,6 +16,7 @@ import { fileURLToPath } from "node:url";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = resolve(__dirname, "..");
 const OWNER = "EcoCitizenz-Ltd";
+const ENGINE_REPO = `${OWNER}/eczid-msp-machine-trust-toolkit`;
 const MAJOR_TAG = "v1";
 const FIRST_RELEASE = "v1.0.0";
 const PACK_ROOT = join(root, "release", "discovery-wrappers");
@@ -79,6 +80,12 @@ function validateReleaseTag(tag) {
   return tag;
 }
 
+function hasExactEngineDelegation(actionYaml, engineSha) {
+  const escapedRepo = ENGINE_REPO.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const pattern = new RegExp(`uses:\\s*["']?${escapedRepo}(?:/[^\\s@"']+)?@${engineSha}["']?`, "m");
+  return pattern.test(actionYaml);
+}
+
 function files(dir) {
   return readdirSync(dir).sort().filter((name) => statSync(join(dir, name)).isFile());
 }
@@ -103,8 +110,8 @@ function buildAndValidatePacks(releaseTag) {
     if (commonEngineSha && commonEngineSha !== engineSha) fail("MSP discovery wrappers do not share one exact engine SHA.");
     commonEngineSha = engineSha;
     const actionYaml = readFileSync(join(dir, "action.yml"), "utf8");
-    if (!actionYaml.includes(`eczid-msp-machine-trust-toolkit@${engineSha}`)) {
-      fail(`${wrapper.slug}: action.yml does not delegate to the exact ENGINE_SHA.`);
+    if (!hasExactEngineDelegation(actionYaml, engineSha)) {
+      fail(`${wrapper.slug}: action.yml does not delegate to the exact ENGINE_SHA at the toolkit root or a toolkit subpath.`);
     }
     const sbomText = readFileSync(join(dir, "sbom.cdx.json"), "utf8");
     const sbom = JSON.parse(sbomText);
@@ -112,7 +119,7 @@ function buildAndValidatePacks(releaseTag) {
     if (sbom?.metadata?.component?.name !== wrapper.slug || sbom?.metadata?.component?.version !== releaseTag) {
       fail(`${wrapper.slug}: wrapper SBOM root metadata does not match the exact release.`);
     }
-    if (sbom?.components?.[0]?.name !== `${OWNER}/eczid-msp-machine-trust-toolkit` || sbom?.components?.[0]?.version !== engineSha) {
+    if (sbom?.components?.[0]?.name !== ENGINE_REPO || sbom?.components?.[0]?.version !== engineSha) {
       fail(`${wrapper.slug}: wrapper SBOM does not describe the exact shared-engine dependency.`);
     }
     packs.set(wrapper.slug, { dir, engineSha });
